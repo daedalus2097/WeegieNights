@@ -1,0 +1,1830 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = "WeegieNights"
+; ExeFile         = "WeegieNights"
+; CreateIcon      = 1
+; Residents       = "all.res"
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 10240
+; MakeSmallest    = 0
+; FuncOptimize    = 1
+; Version         = 0.0.0
+; NumberOfBuilds  = 614
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 80000
+; RuntimeDebug    = 0
+; DebugInfo       = 0
+; CreateDbgFile   = 65535
+; OverflowCheck   = 0
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 854
+; CursorColumn    = 22
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 5
+; Max GadgetList  = 5
+; Max Shape       = 100
+; Max Bank        = 5
+; Max MenuList    = 5
+; Max BlitzFont   = 4
+; Max GTList      = 20
+; Max Palette     = 10
+; Max BitMap      = 10
+; Max Screen      = 5
+; Max IntuiFont   = 5
+; Max Window      = 20
+; Max IconInfo    = 1
+; Max MUIObject   = 50
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 5
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max Tape        = 5
+; Max Sound       = 10
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
+; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
+; /XTRA
+; *** WeegieFuncs.ab3
+; WeegieNights Support Functions
+
+
+CNIF #debug
+Statement dbugprintstring{output$}
+  output$ + Chr$(10) ; Newline
+  Poke.l $bfff04, &output$
+End Statement
+
+Statement dbugprintval{value.l}
+  SHARED fmt$
+
+  Poke.l $bfff00, value
+  Poke.l $bfff00, value
+  Poke.l $bfff04, &fmt$
+End Statement
+CEND
+
+
+Statement loadtiledefs{tileset.w}
+; Loads the tile definitions
+  SHARED map(), tiletrans()
+
+  tileid.w = 0
+
+  DefaultOutput
+  tilesetpath$ = "Maps/Tileset" + Str$(tileset) + ".tsx"
+  ;NPrint "*** Reading Tileset ***"
+  fid.l = xml_Read{tilesetpath$}
+  If fid >= 0
+    Repeat
+      tagname$ = LCase$(xml_ReadTag{fid})
+      If tagname$ = "tile"
+        ;NPrint "Tile"
+        ef.b = False
+        Repeat
+          paramname$ = xml_ReadParamName{fid}
+          ;NPrint paramname$
+          If paramname$ = "id"
+            tileid = xml_ReadParamValue{fid}
+            ef = True
+          End If
+          If paramname$ = "" Then ef = True
+        Until ef
+        ;NPrint "Tile ID: ", tileid
+      End If
+      If tagname$ = "property"
+        ;NPrint "Property"
+        ef.b = False
+        Repeat
+          paramname$ = LCase$(xml_ReadParamName{fid})
+          ;NPrint paramname$
+          If paramname$ = "name"
+            paramname2$ = LCase$(xml_ReadParamString{fid})
+          End If
+          If paramname$ = "value"
+
+            If paramname2$ = "shapeid"
+              tiletrans(tileid)\shapeid = xml_ReadParamValue{fid}
+            Else
+              If paramname2$ = "talltile"
+                tiletrans(tileid)\talltile = xml_ReadParamValue{fid}
+              Else
+                If paramname2$ = "tileside"
+                  tiletrans(tileid)\tileside = xml_ReadParamValue{fid}
+                End If
+              End If
+            End If
+          End If
+          If paramname$ = ""
+            ef = True
+            ;NPrint "Tile ID: ", tileid, ", Shape ID: ", tiletrans(tileid)\shapeid, ", Tall: ", tiletrans(tileid)\talltile
+          End If
+        Until ef
+                                                                                                                                                                                                                                                      
+      End If
+
+    Until tagname$ = ""
+    xml_Close{fid}
+  Else
+    NPrint "Unable to open Tiles file"
+  End If
+End Statement
+
+
+
+Statement loadmap{map.w}
+; Loads the map files and builds the map
+  SHARED map(), mapwidth, mapheight, tiletrans(), mapwidth2
+
+  DefaultOutput
+  mappath$ = "Maps/Map" + Str$(map) + ".tmx"
+  CNIF #debug
+    NPrint "*** Reading Map ***"
+  CEND
+
+  layer.b = 0
+  gid.w = 0
+  firstgid.w = 0
+
+  fid.l = xml_Read{mappath$}
+  If fid >= 0
+    Repeat
+      tagname$ = LCase$(xml_ReadTag{fid})
+      ;NPrint tagname$
+      If tagname$ = "tileset"
+        ;NPrint "Tileset"
+        ef.b = False
+        Repeat
+          paramname$ = xml_ReadParamName{fid}
+          ;NPrint paramname$
+          If paramname$ = "firstgid"
+            gid = xml_ReadParamValue{fid}
+          End If
+          If paramname$ = "source"
+            source$ = xml_ReadParamString{fid}
+            If Instr(source$, "Tileset")
+              firstgid = gid
+            End If
+          End If
+
+          If paramname$ = "" Then ef = True
+        Until ef
+        ;NPrint "FirstGID: ", firstgid
+                                                                                                                                                                                                                                                  
+      End If
+
+      If tagname$ = "layer"
+        ;NPrint "Layer!"
+        ef.b = False
+        Repeat
+          paramname$ = xml_ReadParamName{fid}
+          ;NPrint paramname$
+          If paramname$ = "name"
+            layername$ = xml_ReadParamString{fid}
+            Select layername$
+              Case  "Ground"
+                layer = 0
+                ef2.b = False
+                Repeat
+                  paramname2$ = xml_ReadParamName{fid}
+                  ;NPrint paramname2$
+                  Select paramname2$
+                    Case "width"
+                      mapwidth = xml_ReadParamValue{fid}
+                      mapwidth2 = mapwidth LSL 1
+                      ;NPrint "width: ", mapwidth
+                    Case "height"
+                      mapheight = xml_ReadParamValue{fid}
+                      ;NPrint "height: ", mapheight
+                    Case ""
+                      ef2 = True
+                  End Select
+                Until ef2
+              Case "Buildings"
+                layer = 1
+                ;NPrint "Buildings"
+              Case "Walkable"
+                layer = 2
+                ;NPrint "Walkable"
+            End Select
+          End If
+
+          If paramname$ = "" Then ef = True
+        Until ef
+      End If
+      If tagname$ = "data"
+        ;NPrint "Data found!"
+        ln$ = file_ReadLine{fid}
+        For i.w = 0 To mapheight - 1
+          ln$ = file_ReadLine{fid}
+          ;If i = 0 Then NPrint ln$
+
+          Select layer
+            Case 0 ; Ground tiles
+              prevpos.w = 1
+              For j.w = 0 To mapwidth - 1
+                nextpos.w = Instr(ln$, ",", prevpos)
+                If nextpos
+                  tile.w = Val(Mid$(ln$, prevpos, nextpos - prevpos))
+                  If tile
+                    map(j, i)\tile = tiletrans(tile - firstgid)\shapeid
+                  Else
+                    map(j, i)\tile = -1
+                  End If
+                  prevpos = nextpos + 1
+                  ;If i = 0 Then Print map(j, i)\tile, ", "
+                End If
+              Next j
+              ;If i = 0 Then NPrint ""
+            Case 1 ; Buildings
+              prevpos.w = 1
+              For j.w = 0 To mapwidth - 1
+                nextpos.w = Instr(ln$, ",", prevpos)
+                If nextpos
+                  tile.w = Val(Mid$(ln$, prevpos, nextpos - prevpos))
+                  If tile > 0
+                    map(j, i)\building = tiletrans(tile - firstgid)\shapeid
+                    map(j, i)\talltile = tiletrans(tile - firstgid)\talltile
+                    map(j, i)\tileside = tiletrans(tile - firstgid)\tileside
+                    ;If i = 0 Then Print map(j, i)\tile, ", "
+                    ;If tile Then NPrint "Building: ", j, ", ", i, " Tile: ", tile, ", ", map(j, i)\building
+                  Else
+                    map(j, i)\building = -1
+                  End If
+                  ;If i < 3 Then NPrint "Building: ", j, ", ", i, " Tile: ", tile, ", ", map(j, i)\building
+                  prevpos = nextpos + 1
+                End If
+              Next j
+              ;If i = 0 Then NPrint ""
+                                                                                                                                                                                                                                                  
+            Case 2 ; Walkable
+              prevpos.w = 1
+              For j.w = 0 To mapwidth - 1
+                nextpos.w = Instr(ln$, ",", prevpos)
+                If nextpos
+                  tile.w = Val(Mid$(ln$, prevpos, nextpos - prevpos))
+                  If tile
+                    map(j, i)\walkable = 0
+                  Else
+                    map(j, i)\walkable = 1
+                  End If
+                  prevpos = nextpos + 1
+                End If
+              Next j
+
+          End Select
+        Next i
+
+        ;NPrint ln$
+                                                                                                                                                                                                                                                  
+      End If
+    Until tagname$ = ""
+    xml_Close{fid}
+  End If
+End Statement
+
+
+Statement loaditemdefs{}
+; Loads item definitions
+  SHARED itemdefs()
+  If ReadFile(0, "Data/Items.csv")
+    itemcount.w = 0
+    FileInput 0
+    x$ = Edit$(200)
+    While Eof(0) = 0 ;Len(x$) < 4 ; <> ""
+      ;NPrint x$
+      x$ = Edit$(200)
+      currchar.w = 0
+      prevchar.w = 0
+
+      ;NPrint "Line: ", x$
+      If Len(x$) > 4
+        For i.w = 0 To 4
+          currchar = Instr(x$, ",", prevchar)
+          ;NPrint currchar
+          If currchar
+            cell$ = Mid$(x$, prevchar, currchar - prevchar)
+          Else
+            cell$ = Mid$(x$, prevchar)
+          End If
+          CNIF #debug
+            NPrint "Cell$: ", cell$
+          CEND
+          prevchar = currchar + 1
+          Select i
+            Case 1 ; Name
+              itemdefs(itemcount)\name = cell$
+            Case 2 ; Type
+              itemdefs(itemcount)\kind = Vallong(cell$)
+            Case 3 ; Food
+              itemdefs(itemcount)\food = Vallong(cell$)
+            Case 4 ; Booze
+              itemdefs(itemcount)\booze = Vallong(cell$)
+          End Select
+        Next i
+        ;cell$ = Mid$(x$, currchar + 1)
+        ;itemdefs(itemcount)\booze = Vallong(cell$)
+        CNIF #debug
+          NPrint "Item ", itemcount, ": ", itemdefs(itemcount)\name, ", ", itemdefs(itemcount)\food, ", ", itemdefs(itemcount)\booze
+        CEND
+        itemcount + 1
+      End If
+    End While
+    CloseFile 0
+    DefaultInput
+  Else
+    NPrint "Unable to read item definitions"
+  End If
+End Statement
+
+
+Statement loadshopdefs{}
+; Loads shop definitions
+  SHARED shops(), map()
+  If ReadFile(0, "Data/Shops.csv")
+    itemcount.w = 0
+    FileInput 0
+    x$ = Edit$(512)
+    While Eof(0) = 0
+      x$ = Edit$(512)
+      If Len(x$) > 4
+        ;NPrint "Line: ", x$
+        currchar.w = 0
+        prevchar.w = 0
+        productcount.w = 0
+        For i.w = 0 To 23
+          currchar = Instr(x$, ",", prevchar)
+          If currchar
+            cell$ = Mid$(x$, prevchar, currchar - prevchar)
+          Else
+            cell$ = Mid$(x$, prevchar)
+          End If
+          ;NPrint "Cell: ", cell$
+          prevchar = currchar + 1
+          Select i
+            Case 0 ; ID - don't use this
+              NOP
+            Case 1 ; Name
+              shops(itemcount)\name = cell$
+            Case 2 ; Description
+              shops(itemcount)\description = cell$
+            Case 3 ; Tile x
+             tilex.w = Vallong(cell$)
+            Case 4 ; Tile y
+              tiley.w = Vallong(cell$)
+            Case 5 ; Opening time
+              shops(itemcount)\opentime = Vallong(cell$)
+            Case 6 ; Closing time
+              shops(itemcount)\closetime = Vallong(cell$)
+            Case 7 ; Item count
+              shops(itemcount)\itemcount = Vallong(cell$)
+            Default
+              If productcount < shops(itemcount)\itemcount
+                ;NPrint "Item ", productcount, " of ", shops(itemcount)\itemcount
+                If i & %1 = 0
+                  shops(itemcount)\items[productcount] = Vallong(cell$)
+                  ;NPrint "Item ID: ", shops(itemcount)\items[productcount]
+                Else
+                  shops(itemcount)\prices[productcount] = Val(cell$)
+                  ;NPrint "Price: ", shops(itemcount)\prices[productcount]
+                  productcount + 1
+                End If
+
+              End If
+          End Select
+        Next i
+        CNIF #debug
+          NPrint "Shop: ", shops(itemcount)\name, ", ", shops(itemcount)\description, ", ", shops(itemcount)\opentime, ", ", shops(itemcount)\closetime, ", ", shops(itemcount)\items[1], ", ", shops(itemcount)\prices[1]
+        CEND
+        map(tilex, tiley)\specialtype = #special_shop
+        map(tilex, tiley)\specialid = itemcount
+        itemcount + 1
+      End If
+    End While
+    CloseFile 0
+    DefaultInput
+  Else
+    NPrint "Unable to read item definitions"
+  End If
+
+End Statement
+
+
+Statement loadnpcdefs{}
+; Loads NPC definitions
+  SHARED npcs(), npccount
+
+  If ReadFile(0, "Data/NPCs.csv")
+    npccount = 0
+    FileInput 0
+    x$ = Edit$(200)
+    While Eof(0) = 0 ;Len(x$) < 4 ; <> ""
+      x$ = Edit$(200)
+      If Len(x$) > 2
+        ;NPrint "Line: ", x$
+        currchar.w = 0
+        prevchar.w = 0
+        pathcount.w = 0
+        For i.w = 0 To 24
+          currchar = Instr(x$, ",", prevchar)
+          If currchar
+            cell$ = Mid$(x$, prevchar, currchar - prevchar)
+          Else
+            cell$ = Mid$(x$, prevchar)
+          End If
+          ;NPrint "Cell: ", cell$
+          prevchar = currchar + 1
+          Select i
+            Case 0 ; ID - don't use this
+              NOP
+            Case 1 ; Name
+              npcs(npccount)\name = cell$
+            Case 2 ; Description
+              npcs(npccount)\description = cell$
+            Case 3 ; Type
+              npcs(npccount)\kind = Vallong(cell$)
+            Case 4 ; Shape offset
+              npcs(npccount)\shapeoffset = #sh_npcstart + Vallong(cell$)
+            Case 5 ; Path point count
+              npcs(npccount)\pathpointcount = Vallong(cell$)
+            Default
+              If pathcount < npcs(npccount)\pathpointcount
+                ;NPrint "Item ", productcount, " of ", shops(itemcount)\itemcount
+                If i & %1 = 0 ; Starting in an even column
+                  npcs(npccount)\pathpointsx[pathcount] = Vallong(cell$)
+                  ;NPrint "Item ID: ", shops(itemcount)\items[productcount]
+                Else
+                  npcs(npccount)\pathpointsy[pathcount] = Vallong(cell$)
+                  ;NPrint "Price: ", shops(itemcount)\prices[productcount]
+                  pathcount + 1
+                End If
+
+              End If
+          End Select
+        Next i
+        npcs(npccount)\worldx = npcs(npccount)\pathpointsx[0]
+        npcs(npccount)\worldy = npcs(npccount)\pathpointsy[0]
+        ;NPrint "NPC Target: ", npcs(npccount)\worldx, ", ", npcs(npccount)\worldy
+        npcs(npccount)\targetx = npcs(npccount)\worldx
+        npcs(npccount)\targety = npcs(npccount)\worldy
+        ;NPrint "NPC Point 1: ", npcs(npccount)\pathpointsx[1], ", ", npcs(npccount)\pathpointsy[1]
+        ;NPrint "NPC Point 2: ", npcs(npccount)\pathpointsx[2], ", ", npcs(npccount)\pathpointsy[2]
+        ;NPrint "NPC Point 3: ", npcs(npccount)\pathpointsx[3], ", ", npcs(npccount)\pathpointsy[3]
+        npcs(npccount)\basedx = 2
+        npcs(npccount)\basedy = 1
+        If npcs(npccount)\pathpointcount > 1
+          npcs(npccount)\activity = #npc_path
+        Else
+          npcs(npccount)\activity = #npc_idle
+        End If
+
+        ;If npcs(npccount)\kind = #npc_mugger OR npcs(npccount)\kind = #npc_dealer
+        ;  npcs(npccount)\hunting = 1
+        ;End If
+
+        CNIF #debug
+          NPrint "NPC: ", npccount, ": ", npcs(npccount)\name, ", ", npcs(npccount)\kind, ", ", npcs(npccount)\shapeoffset, ", ", npcs(npccount)\pathpointcount, ", ", npcs(npccount)\worldx, ", ", npcs(npccount)\worldy
+        CEND
+        npccount + 1
+      End If
+    End While
+    CloseFile 0
+    DefaultInput
+  Else
+    NPrint "Unable to read NPC definitions"
+  End If
+                                                                                                                                                                                                                                                        
+
+
+
+
+
+;  npcs(0)\name = "Testy McTestface"
+;  npcs(0)\worldx = 255
+;  npcs(0)\worldy = 63
+;  npcs(0)\targetx = 255
+;  npcs(0)\targety = 63
+;  npcs(0)\basedx = 2
+;  npcs(0)\basedy = 1
+;  npcs(0)\activity = #npc_path
+;  npcs(0)\pathpointcount = 4
+;  npcs(0)\pathpointsx[0] = 255
+;  npcs(0)\pathpointsy[0] = 63
+;  npcs(0)\pathpointsx[1] = 319
+;  npcs(0)\pathpointsy[1] = 95
+;  npcs(0)\pathpointsx[2] = 0
+;  npcs(0)\pathpointsy[2] = 100
+;  npcs(0)\pathpointsx[3] = 319
+;  npcs(0)\pathpointsy[3] = 160
+;  npcs(0)\shapeoffset = #sh_npcstart
+;
+;  npccount = 1
+End Statement
+
+
+Statement loadhighscores{}
+; Loads high scores
+  SHARED highscores()
+  If ReadFile(0, "data/scores.dat")
+    FileInput 0
+    For i.w = 1 To 10
+      highscores(i)\name = Edit$(10)
+      highscores(i)\totalmins = Vallong(Edit$(10))
+    Next i
+    DefaultInput
+    CloseFile 0
+  Else
+    CNIF #debug
+      NPrint "Unable to read high scores"
+    CEND
+  End If
+End Statement
+
+
+Statement savehighscores{}
+; Saves high scores
+  SHARED highscores()
+  If WriteFile(0, "data/scores.dat")
+    FileOutput 0
+    For i.w = 1 To 10
+      NPrint highscores(i)\name
+      NPrint highscores(i)\totalmins
+    Next i
+    DefaultOutput
+    CloseFile 0
+  Else
+    CNIF #debug
+      NPrint "Unable to read high scores"
+    CEND
+  End If
+                                                                                                                                                                                                                                                        
+End Statement
+
+
+Statement drawmap{startx.w, starty.w}
+; Draws the map tiles to the bitmap starting with the given coordinates
+  BLITZ
+  RunErrsOff
+  SHARED map()
+  Use BitMap 0
+  ;BitMapOutput 0
+  ;Colour 6, 30
+
+  For i.w = starty To 31 ;starty + 18 ;28
+    For j.w = startx To startx + 8 ;11
+      CNIF #splitscroll
+        If i > 2
+      CEND
+        xblit.w = j * 64
+        yblit.w = i * 16 ;+ #bmapyoffset
+
+        CNIF #splitscroll
+        If yblit >= 256 AND yblit <= 288
+  ;        yblit - 160
+          If map(j, i)\tile <> -1
+            If i & %1
+              Blit map(j, i)\tile, xblit + 32, yblit - 256
+              If map(j, i)\building <> -1
+                Blit map(j, i)\building, xblit + 32, yblit - 256
+              End If
+            Else
+              Blit map(j, i)\tile, xblit, yblit - 256
+              If map(j, i)\building <> -1
+                Blit map(j, i)\building, xblit, yblit - 256
+              End If
+            End If
+          End If
+
+        End If
+        CEND
+
+
+          ;If map(j, i)\building = 24 Then End
+        If i & %1
+          If map(j, i)\tile <> -1
+            Blit map(j, i)\tile, xblit + 32, yblit
+          End If
+          If map(j, i)\building <> -1
+            If map(j, i)\tileside = 2
+              Blit map(j, i)\building, xblit + 64, yblit
+            Else
+              Blit map(j, i)\building, xblit + 32, yblit
+            End If
+          End If
+            ;Locate (xblit + 32 + 24) LSR 3, (yblit + 12) LSR 3
+            ;Print map(j, i)\building
+                                                                                                                                                                                                                                                  
+        Else
+          If map(j, i)\tile <> -1
+            Blit map(j, i)\tile, xblit, yblit
+          End If
+          If map(j, i)\building <> -1
+            If map(j, i)\tileside = 2
+              Blit map(j, i)\building, xblit + 32, yblit
+            Else
+              Blit map(j, i)\building, xblit, yblit
+            End If
+          End If
+            ;Locate (xblit + 24) LSR 3, (yblit + 12) LSR 3
+            ;Print map(j, i)\building
+                                                                                                                                                                                                                                                  
+        End If
+      CNIF #splitscroll
+        End If
+      CEND
+    Next j
+  Next i
+
+  CopyBitMap 0, 1
+  RunErrsOn
+End Statement
+
+
+Statement fadeup{pal.w, steps.w}
+; Fades up palette pal from black in steps frames
+  BLITZ ; Only needed for debugger
+  Dim fadevals.q(32, 3)
+  Dim fadesteps.q(32, 3)
+
+  PaletteInfo pal
+
+  For i.w = 0 To 31
+    fadesteps(i, 1) = PalRed(i) / steps
+    fadesteps(i, 2) = PalGreen(i) / steps
+    fadesteps(i, 3) = PalBlue(i) / steps
+  Next i
+
+  For i = 1 To steps
+    For j.w = 0 To 31
+      For k.w = 1 To 3
+        fadevals(j, k) + fadesteps(j, k)
+      Next k
+      PalRGB #pal_fade, j, fadevals(j, 1), fadevals(j, 2), fadevals(j, 3)
+    Next j
+    VWait
+    DisplayPalette 0, #pal_fade
+  Next i
+  VWait
+  DisplayPalette 0, pal
+End Statement
+
+
+Statement fadedown{pal.w, steps.w, audio.b}
+; Fades down palette pal to black in steps frames. Audio sets whether to also fade music volume
+  SHARED mfxvol
+  BLITZ
+  Dim fadevals.q(32, 3)
+  Dim fadesteps.q(32, 3)
+
+  PaletteInfo pal
+
+  For i.w = 0 To 31
+    fadevals(i, 1) = PalRed(i)
+    fadevals(i, 2) = PalGreen(i)
+    fadevals(i, 3) = PalBlue(i)
+    fadesteps(i, 1) = fadevals(i, 1) / steps
+    fadesteps(i, 2) = fadevals(i, 2) / steps
+    fadesteps(i, 3) = fadevals(i, 3) / steps
+  Next i
+
+  volfadeval.q = mfxvol
+  volfadestep.q = mfxvol / steps
+
+  For i = 1 To steps
+    VWait
+    For j.w = 0 To 31
+      For k.w = 1 To 3
+        fadevals(j, k) - fadesteps(j, k)
+      Next k
+      PalRGB #pal_fade, j, fadevals(j, 1), fadevals(j, 2), fadevals(j, 3)
+    Next j
+    DisplayPalette 0, #pal_fade
+
+    If audio
+      volfadeval - volfadestep
+      ;Poke.b $DFF0A8, volfadeval
+      ;Poke.b $DFF0B8, volfadeval
+      ;Poke.b $DFF0C8, volfadeval
+      ;Poke.b $DFF0D8, volfadeval
+
+      MTMasterVolume volfadeval ;mfxvol
+    End If
+  Next i
+End Statement
+
+
+Statement splashscreens{}
+; Shows the splashscreens before the titlescreen
+  BLITZ
+  Use BitMap 0
+  InitCopList 0, 44, 256, 5, 8, 32, 0
+  CreateDisplay 0
+  DisplayPalette 0, #pal_black
+  DisplayBitMap 0, 0
+
+  Blit #sh_jamlogo, 160, 128
+  fadeup{#pal_jamlogo, 20}
+  For i.w = 1 To 100
+    VWait
+    If Joyb(1) OR RawStatus($40) OR RawStatus($44) OR RawStatus($45)
+      i = 100
+    End If
+  Next i
+  fadedown{#pal_jamlogo, 20, 0}
+
+  Boxf 0, 0, 319, 255, 0
+  VWait 10
+
+  Blit #sh_sauglogo, 160, 128
+  fadeup{#pal_sauglogo, 20}
+  For i.w = 1 To 100
+    VWait
+    If Joyb(1) OR RawStatus($40) OR RawStatus($44) OR RawStatus($45)
+      i = 100
+    End If
+  Next i
+  fadedown{#pal_sauglogo, 20, 0}
+
+  Boxf 0, 0, 319, 255, 0
+  VWait 10
+  FNSOutput 0, On
+  FNSPrefs %11, 1
+  FNSPrint 1, 160, 10, "Disclaimer"
+  FNSPrefs %1, 1
+  FNSPrint 1, 160, 60, "Weegie Nights contains language, humour and depictions"
+  FNSPrint 1, 160, 80, "some players may find offensive, and other players"
+  FNSPrint 1, 160, 100, "may not understand."
+
+  FNSPrint 1, 160, 140, "A few players might even find it funny."
+
+  FNSPrint 1, 160, 180, "Any similarities to real people, places or companies is"
+  FNSPrint 1, 160, 200, "purely coincidental."
+
+  Box 0, 0, 319, 255, 1
+  ;Blit #sh_scenemissing, 160, 128
+  fadeup{#pal_scenemissing, 20}
+  For i.w = 1 To 300
+    VWait
+    If Joyb(1) OR RawStatus($40) OR RawStatus($44) OR RawStatus($45)
+      i = 300
+    End If
+  Next i
+  fadedown{#pal_scenemissing, 20, 0}
+                                                                                                                                                                                                                                                        
+End Statement
+
+
+Statement titlescreen{}
+; Shows the title screen
+  SHARED status, displayx, displayy, db, refresh, statuscounter
+  Use BitMap 0
+
+  Boxf 0, 0, 319, 255, 0
+  VWait
+  InitCopList 0, 44, 256, 5, 8, 32, 0
+  CreateDisplay 0
+  DisplayPalette 0, #pal_black
+  DisplayBitMap 0, 0;, 0, 0
+
+  VWait 10
+  Blit #sh_titlescreen, 160, 128
+  Box 0, 0, 319, 255, #c_white
+  VWait
+  ;If fadeup
+  ;  fadeup{#pal_titlescreen, 20}
+  ;End If
+  Use BitMap 1
+  BlockScroll 0, 0, 320, 256, 0, 0, 0
+  Use BitMap 0
+  ;Delay_ 2
+  displayx = 0
+  displayy = 0
+  db = 1
+  refresh = 0
+  statuscounter = 0
+End Statement
+
+
+Statement initgamedisplay{}
+; Brings up the split display and draws the initial map area
+  SHARED displayx, displayy
+
+  CNIF #splitscroll
+    InitCopList 0, 44, 200, $15, 8, 32, 80 ; -2;-60 ; Working
+  CELSE
+    InitCopList 0, 44, 200, $15, 8, 32, -3;-2;-60 ; Working ; -3 for line offsets and -2 for gradient background
+  CEND
+  ;InitCopList 1, 44, 54, $5, 8, 32, 0
+  InitCopList 1, 246, 54, $5, 8, 32, 0 ; Working
+
+
+  CreateDisplay 0, 1
+  ;CreateDisplay 1, 0
+  DisplayPalette 0, #pal_black
+  DisplayBitMap 0, 0, displayx, displayy
+  DisplayControls 0, 0, $c20, 0
+
+
+
+  drawmap{0, 0}
+
+
+
+  CNIF #debug = 0
+    ;DisplayRainbow 0, 0, 1
+  CEND
+
+
+
+  ;DisplayUser 0, 100, cop$
+  ;DisplayUser 0, 101, cop2$, 36
+
+
+
+  ;CustomString
+
+  DisplayBitMap 1, #bmap_statusbar
+
+  PalRGB #pal_statusbar, 17, 15, 15, 15
+                                                                                                                                                                                                                                                        
+  DisplayPalette 1, #pal_statusbar
+
+  fadeup{#pal_main, 20}
+
+  ;DisplayPalette 1, #pal_statusbar
+
+
+
+End Statement
+
+
+Statement initgame{}
+; Resets various game parameters ready to start
+  SHARED displayx, displayy, prevdisplayx, prevdisplayy, timemins, timehrs, money, fooddelta, boozedelta, player, npcs(), npccount
+  SHARED zonelevel, zonelevelpointer, prevzonelevelpointer, booze, food, drunkarmedflag, score, bubbletime, zonepointercol
+
+  displayx = #displayxmin
+  displayy = #displayymin
+
+  prevdisplayx = displayx
+  prevdisplayy = displayy
+
+  timemins = 0
+  timehrs = 18
+
+  money = 53.5
+
+  fooddelta = 20
+  boozedelta = -15
+
+  booze = 0
+  food = 0
+  score = 0
+
+  zonelevel = 0
+  zonelevelpointer = 0
+  prevzonelevelpointer = 0
+  zonepointercol = 15
+
+  drunkarmedflag = 0
+
+  player\worldx = 64
+  player\worldy = 128
+
+  player\mapx = 0
+  player\mapy = 7
+
+  player\basedx = 2 ;1
+  player\basedy = 1 ;0.5
+
+  player\diagdx = 1.5
+  player\diagdy = 0.75
+
+  For i.w = 0 To npccount
+    npcs(i)\pathstep = 0
+    npcs(i)\worldx = npcs(i)\pathpointsx[0]
+    npcs(i)\worldy = npcs(i)\pathpointsy[0]
+    npcs(i)\targetx = npcs(i)\pathpointsx[0]
+    npcs(i)\targety = npcs(i)\pathpointsy[0]
+    npcs(i)\money = Int(Rnd(200)) / 10
+    If npcs(i)\pathpointcount > 1
+      npcs(i)\activity = #npc_path
+    Else
+      npcs(i)\activity = #npc_idle
+    End If
+    npcs(i)\mood = #npc_neutral
+    npcs(i)\changedestflag = 0
+    npcs(i)\hunting = 0
+    If npcs(i)\kind = #npc_mugger OR npcs(i)\kind = #npc_dealer
+      npcs(i)\engage = 0;1 ; Fix this later
+    Else
+      npcs(i)\engage = 0
+    End If
+
+  Next i
+
+  bubbletime = -1 ; Don't think this is needed, but just in case...
+End Statement
+
+
+Statement showhighscores{highlight.b, fire.b}
+; Shows high score table. Highlight value sets the given high score entry to red if not 0.
+; Fire adds the "Press Fire" line to the bottom
+  SHARED highscores(), status
+
+  ;fadedown{#pal_titlescreen, 20}
+
+  Use BitMap 0
+
+  Boxf 60, 20, 259, 229, #c_menubg
+  Line 60, 229, 259, 229, #c_black
+  Line 259, 20, #c_black
+  Line 60, 20, #c_white
+  Line 60, 229, #c_white
+
+  Line 61, 228, 258, 228, #c_black
+  Line 258, 21, #c_black
+  Line 61, 21, #c_white
+  Line 61, 228, #c_white
+
+  BitMapOutput 0
+
+  FNSOutput 0, On
+
+  FNSPrefs %11, #c_white
+  FNSPrint 1, 160, 28, "Greatest Weegies"
+
+
+  For i.w = 1 To 10
+    If i = highlight
+      FNSPrefs 0, #c_red
+      Colour #c_red, #c_menubg
+    Else
+      FNSPrefs 0, #c_black
+      Colour #c_black, #c_menubg
+    End If
+
+    hrs.w = Int(highscores(i)\totalmins) / 60
+    mns.w = highscores(i)\totalmins MOD 60
+    msg$ = Str$(hrs) + " hour"
+    If hrs <> 1 Then msg$ + "s"
+    msg$ + " " + Str$(mns) + " minute"
+    If mns <> 1 Then msg$ + "s"
+
+    Locate 11, i * 2 + 4
+    Print highscores(i)\name
+    FNSPrint 1, 140, i * 16 + 30, msg$
+  Next i
+
+  If fire
+    FNSPrefs %1, #c_white
+    FNSPrint 1, 160, 210, "Press Fire"
+  End If
+
+  fadeup{#pal_titlescreen, 20}
+
+  status = #highscores
+End Statement
+
+
+Statement showcredits{pg.w}
+; Lists game credits
+  SHARED status, q$
+
+  fadedown{#pal_titlescreen, 20, 0}
+
+  Use BitMap 0
+
+  Boxf 60, 20, 259, 229, #c_menubg
+  Line 60, 229, 259, 229, #c_black
+  Line 259, 20, #c_black
+  Line 60, 20, #c_white
+  Line 60, 229, #c_white
+
+  Line 61, 228, 258, 228, #c_black
+  Line 258, 21, #c_black
+  Line 61, 21, #c_white
+  Line 61, 228, #c_white
+                                                                                                                                                                                                                                                        
+
+  BitMapOutput 0
+
+  FNSOutput 0, On
+
+  FNSPrefs %11, #c_white
+  FNSPrint 1, 160, 28, "Weegie Nights Credits"
+
+  Select pg
+    Case 0
+      FNSPrefs 0, #c_white
+      FNSPrint 1, 80, 50, "Concept"
+      FNSPrefs 0, #c_black
+      FNSPrint 1, 90, 62, "Scottish Amiga Users Group"
+
+
+      FNSPrefs 0, #c_white
+      FNSPrint 1, 80, 80, "Coding"
+      FNSPrefs 0, #c_black
+      FNSPrint 1, 90, 92, "Rob Cranley"
+
+      FNSPrefs 0, #c_white
+      FNSPrint 1, 80, 110, "Graphics"
+      FNSPrefs 0, #c_black
+      FNSPrint 1, 90, 122, "Graham Thomson"
+      FNSPrint 1, 90, 134, "Johnny Barker"
+      FNSPrint 1, 90, 146, "Rob Cranley"
+
+      FNSPrefs 0, #c_white
+      FNSPrint 1, 80, 164, "Title Music"
+      FNSPrefs 0, #c_black
+      FNSPrint 1, 90, 176, "Banjo Guy Ollie"
+    Case 1
+      FNSPrefs 0, #c_white
+      FNSPrint 1, 80, 50, "Sound Effects"
+      FNSPrefs 0, #c_black
+      FNSPrint 1, 90, 62, "Andrew Clarke"
+      FNSPrint 1, 90, 74, "Rob Cranley"
+
+      FNSPrefs 0, #c_white
+      FNSPrint 1, 80, 92, "In-game " + q$ + "Music" + q$
+      FNSPrefs 0, #c_black
+      FNSPrint 1, 90, 104, "Rob Cranley"
+
+      FNSPrefs 0, #c_white
+      FNSPrint 1, 80, 122, "Level Design"
+      FNSPrefs 0, #c_black
+      FNSPrint 1, 90, 134, "Graham Thomson"
+      FNSPrint 1, 90, 146, "Johnny Barker"
+                                                                                                                                                                                                                                                    
+  End Select
+                                                                                                                                                                                                                                                        
+
+  FNSPrefs %1, #c_white
+  FNSPrint 1, 160, 210, "Press Fire"
+                                                                                                                                                                                                                                                        
+  fadeup{#pal_titlescreen, 20}
+
+  status = #credits
+End Statement
+
+
+Statement showabout{pg.w}
+; About the game, instructions
+  SHARED status
+
+  fadedown{#pal_titlescreen, 20, 0}
+
+  Use BitMap 0
+
+  Boxf 30, 20, 289, 229, #c_menubg
+  Line 30, 229, 289, 229, #c_black
+  Line 289, 20, #c_black
+  Line 30, 20, #c_white
+  Line 30, 229, #c_white
+
+  Line 31, 228, 288, 228, #c_black
+  Line 288, 21, #c_black
+  Line 31, 21, #c_white
+  Line 31, 228, #c_white
+
+
+  BitMapOutput 0
+
+  FNSOutput 0, On
+
+  Select pg
+    Case 0
+      FNSPrefs %11, #c_white
+      FNSPrint 1, 160, 28, "About Weegie Nights"
+
+      FNSPrefs %10, #c_black
+      FNSPrint 1, 70, 60, "Weegie"
+      FNSPrefs 0, #c_black
+      FNSPrint 1, 120, 60, "(noun/adj.)"
+      ;FNSPrint 1, 100, 72, "Of or pertaining to Glasgow"
+      FNSPrint 1, 90, 72, "A native or inhabitant of Glasgow;"
+      FNSPrint 1, 90, 84, "a Glaswegian."
+
+      FNSPrint 1, 40, 110, "Weegie Nights was developed as an entry for"
+      FNSPrint 1, 40, 122, "the Amiga Blitz Basic Game Jam 2022"
+      FNSPrint 1, 40, 146, "Software used includes:"
+      FNSPrint 1, 40, 158, "AmiBlitz 3.8 & 3.9"
+      FNSPrint 1, 40, 170, "Personal Paint 7.1c"
+      FNSPrint 1, 40, 182, "SampleZ 0.14"
+
+
+    Case 1
+      FNSPrefs %11, #c_white
+      FNSPrint 1, 160, 28, "About Weegie Nights"
+
+      FNSPrefs 0, #c_black
+      FNSPrint 1, 40, 50, "Guide Ned, our hero, through a night out in"
+      FNSPrint 1, 40, 62, "Glasgow, helping him to stay out as long as"
+      FNSPrint 1, 40, 74, "possible by keeping him in 'the zone'."
+      FNSPrint 1, 40, 86, "If he's sober for too long or gets too drunk"
+      FNSPrint 1, 40, 98, "for too long, he'll have to go home."
+
+      FNSPrint 1, 40, 122, "Buy (or otherwise acquire) food and booze"
+      FNSPrint 1, 40, 134, "to power Ned through to the wee hours. Food"
+      FNSPrint 1, 40, 146, "slows down the effects of alcohol, and"
+      FNSPrint 1, 40, 158, "different shops close at different times so"
+      FNSPrint 1, 40, 170, "try to find a good balance of everything."
+
+    Case 2
+      FNSPrefs %11, #c_white
+      FNSPrint 1, 160, 28, "Controls"
+
+      FNSPrefs 0, #c_black
+      FNSPrint 1, 40, 50, "Ned can be controlled with the joystick or"
+      FNSPrint 1, 40, 62, "keyboard (using the arrow keys and"
+      FNSPrint 1, 40, 74, "space/enter)."
+      FNSPrint 1, 40, 98, "Press fire to interact with people or objects."
+      FNSPrint 1, 40, 122, "Push towards a shop and press fire to open"
+      FNSPrint 1, 40, 134, "its menu."
+      FNSPrint 1, 40, 158, "Press Esc to pause."
+
+  End Select
+
+  FNSPrefs %1, #c_white
+  FNSPrint 1, 160, 210, "Press Fire"
+
+  fadeup{#pal_titlescreen, 20}
+
+  status = #about
+End Statement
+
+
+
+Function.s currency{amount.q}
+; Returns a formatted string for the given amount of money
+  pounds.w = amount
+  pence.w = Frac(amount) * 100
+  result$ = "]" + Str$(amount) ; Fonts modded to use ] for pound symbol
+  reslen.w = Peek.w(&result$ - 2) < 3
+  If pounds = amount
+    result$ + ".00"
+  Else
+    pointpos.w = Instr(result$, ".")
+    If pointpos > reslen - 1
+      result$ + "0"
+    End If
+  End If
+
+  ;If pence < 10
+  ;  result$ + "0"
+  ;End If
+  ;result$ + Str$(pence)
+  ;result$ = Str$(amount)
+  Function Return result$
+End Function
+
+
+Statement drawmenubg{entries.w}
+; Clears the menu bitmap and draws a border to suit the given number of entries
+  SHARED menuheight;, db
+
+  menuheight = entries * 12 + 60
+  ;menumid = menuheight LSR 1
+
+  Use BitMap #bmap_menuscratch
+
+
+  Boxf 0, 0, 239, 160, #c_menubg
+
+  Line 0, menuheight - 1, 239, menuheight - 1, #c_black
+  Line 239, 0, #c_black
+  Line 0, 0, #c_white
+  Line 0, menuheight - 1, #c_white
+
+  Line 1, menuheight - 2, 238, menuheight - 2, #c_black
+  Line 238, 1, #c_black
+  Line 1, 1, #c_white
+  Line 1, menuheight - 2, #c_white
+
+  ;Use BitMap db
+  BitMapOutput #bmap_menuscratch
+  FNSOutput #bmap_menuscratch;, 1
+  FNSClipOutput
+End Statement
+
+
+Statement showmenu{entries.w}
+; Copies the current menu bitmap to the displayed bitmap in 4px lines, based on the number of entries
+  SHARED db, menuheight, displayx, displayy, menux, menuy, menux2, menuy2, refresh, currentmenu
+
+  menumid.w = menuheight LSR 1
+  menux = displayx + 40
+  menuy = displayy + 100 - menumid
+  menux2 = 240 + menux
+  menuy2 = menuheight + menuy ;entries * 12 + 60 + menuy
+  ;menuheight.w = menuy2 - menuy
+
+  Use BitMap #bmap_menubuffer
+
+  Scroll menux, menuy, 240, menuy2 - menuy, 0, 0, 1 - db
+
+  Use BitMap 1 - db
+
+  ;Boxf menux, menuy, menux2 - 1, menuy2 - 1, #c_menubg
+
+  If currentmenu <> #menu_title
+    MTSoundFX #snd_menuup, 64
+  End If
+
+  For i.w = 0 To menumid - 4 Step 4
+    VWait
+    Scroll 0, menumid - i - 4, 240, 4, menux, menuy + menumid - i - 4, #bmap_menuscratch
+    Scroll 0, menumid + i, 240, 4, menux, menuy + menumid + i, #bmap_menuscratch
+
+    ;Boxf menux, menuy + menumid - i - 3, menux + 239, menuy + menumid - i, #c_menubg
+    ;Boxf menux, menuy + menumid + i, menux + 239, menuy + menumid + i + 3, #c_menubg
+  Next i
+
+  ; Special case for when the menuheight isn't a multiple of 4
+  If entries & %1 = 0 ;(even entries count (which means odd number of entries...))
+    VWait
+    Scroll 0, 0, 240, 4, menux, menuy, #bmap_menuscratch
+    Scroll 0, menuheight - 4, 240, 4, menux, menuy + menuheight - 4, #bmap_menuscratch
+  End If
+  ;Use BitMap db
+  refresh = 0
+End Statement
+
+
+Function.b shopopen{shopid.w}
+; Checks if the given shop is open at the current time
+  SHARED shops(), timehrs
+  result.b = False
+
+  opening.w = shops(shopid)\opentime
+  closing.w = shops(shopid)\closetime
+  If timehrs >= opening
+    If timehrs < closing
+      result = True
+    Else
+      If closing < opening
+        result = True
+      End If
+    End If
+
+  Else
+    If closing < opening AND timehrs < closing
+      result = True
+    End If
+  End If
+
+  If closing = opening
+    result = True
+  End If
+
+  Function Return result
+End Function
+
+
+Statement openmenu{menu.w, currentaction.w, swapbuffer.b}
+;Function.w openmenu{menu.w, currentaction.w, swapbuffer.b}
+; Generates the requested menu and displays it on the screen
+  SHARED db, status, currentmenu, shops(), itemdefs(), displayx, displayy, menux, menuy, menuselected, prevmenuselected, menuentries, menuheight, timehrs, npcs(), q$
+  SHARED money
+
+  Select menu
+    Case #menu_title
+      menuentries = 4
+      drawmenubg{menuentries}
+
+      FNSPrefs %11, #c_white
+      FNSPrint 1, 120, 8, "Weegie Nights"
+      FNSPrefs 0, #c_black
+      FNSPrint 1, 24, 40, "Start"
+      FNSPrint 1, 24, 52, "About / Instructions"
+      FNSPrint 1, 24, 64, "High Scores"
+      FNSPrint 1, 24, 76, "Credits"
+      FNSPrint 1, 24, 88, "Quit"
+
+      showmenu{menuentries}
+                                                                                                                                                                                                                                                    
+    Case #menu_shop
+      opening.w = shops(currentaction)\opentime
+      closing.w = shops(currentaction)\closetime
+
+      ; menuentries counts from 0, so is (number of entries - 1)
+      If shopopen{currentaction}
+        menuentries = shops(currentaction)\itemcount
+        drawmenubg{menuentries}
+        FNSPrefs %11, #c_white
+        FNSPrint 1, 120, 8, &shops(currentaction)\name
+        FNSPrefs %1, #c_red
+        FNSPrint 1, 120, 20, &shops(currentaction)\description
+        FNSPrefs 0, #c_black
+        For i.w = 0 To menuentries
+          If i < menuentries
+            FNSPrint 1, 24, 40 + i * 12, &itemdefs(shops(currentaction)\items[i])\name
+            x$ = currency{shops(currentaction)\prices[i]}
+            FNSPrint 1, 184, 40 + i * 12, &x$
+          Else
+            FNSPrint 1, 24, 40 + i * 12, "Cancel"
+          End If
+        Next i
+
+      Else ; We're closed
+        menuentries = 0
+        drawmenubg{menuentries}
+        FNSPrefs %11, #c_white
+        FNSPrint 1, 120, 8, &shops(currentaction)\name
+        FNSInk #c_red
+        x$ = "Opening Hours: " + Str$(opening) + ":00 - " + Str$(closing) + ":00"
+        FNSPrint 1, 120, 20, &x$
+        FNSPrefs 0, #c_black
+        FNSPrint 1, 24, 40, "Cancel"
+      End If
+
+      showmenu{menuentries}
+
+    Case #menu_pause
+      menuentries = 1
+      drawmenubg{menuentries}
+      FNSPrefs %11, #c_white
+      FNSPrint 1, 120, 8, "Game Paused"
+      FNSPrefs 0, #c_black
+      FNSPrint 1, 24, 40, "Continue"
+      FNSPrint 1, 24, 52, "Quit to Title Screen"
+
+      showmenu{menuentries}
+
+    Case #menu_npc_randomer
+      menuentries = 2
+      drawmenubg{menuentries}
+      FNSPrefs %11, #c_white
+      FNSPrint 1, 120, 8, &npcs(currentaction)\name
+      FNSPrefs %1, #c_red
+      FNSPrint 1, 120, 20, &npcs(currentaction)\description
+      FNSPrefs 0, #c_black
+      FNSPrint 1, 24, 40, q$ + "Any spare change?" + q$
+      FNSPrint 1, 24, 52, q$ + "Gies yer wallet!" + q$
+      FNSPrint 1, 24, 64, "Cancel"
+
+      showmenu{menuentries}
+                                                                                                                                                                                                                                                      
+    Case #menu_npc_police
+      menuentries = 2
+      drawmenubg{menuentries}
+      FNSPrefs %11, #c_white
+      FNSPrint 1, 120, 8, &npcs(currentaction)\name
+      FNSPrefs %1, #c_red
+      FNSPrint 1, 120, 20, &npcs(currentaction)\description
+                                                                                                                                                                                                                                                    
+      FNSPrefs 0, #c_black
+      FNSPrint 1, 24, 40, q$ + "Have ye got the time?" + q$
+      FNSPrint 1, 24, 52, q$ + "Oink! Oink!" + q$
+      FNSPrint 1, 24, 64, "Cancel"
+
+      showmenu{menuentries}
+
+    Case #menu_npc_dealer
+      menuentries = 2
+      drawmenubg{menuentries}
+      FNSPrefs %11, #c_white
+      FNSPrint 1, 120, 8, &npcs(currentaction)\name
+      FNSPrefs %1, #c_red
+      FNSPrint 1, 120, 20, &npcs(currentaction)\description
+      FNSPrefs 0, #c_black
+      FNSPrint 1, 24, 40, "Bottle of moonshine"
+      x$ = currency{4}
+      FNSPrint 1, 184, 40 + i * 12, &x$
+      FNSPrint 1, 24, 52, "Suspicious little pill"
+      x$ = currency{8}
+      FNSPrint 1, 184, 52 + i * 12, &x$
+      FNSPrint 1, 24, 64 + i * 12, "Cancel"
+
+      showmenu{menuentries}
+
+    Case #menu_npc_mugger
+      menuentries = 2
+      drawmenubg{menuentries}
+      FNSPrefs %11, #c_white
+      FNSPrint 1, 120, 8, &npcs(currentaction)\name
+      FNSPrefs %1, #c_red
+      FNSPrint 1, 120, 20, &npcs(currentaction)\description
+
+      FNSPrefs 0, #c_black
+      If money > 0
+        FNSPrint 1, 24, 40, q$ + "Here, take it all!" + q$
+        FNSPrint 1, 24, 52, q$ + "Get tae fuck!" + q$
+        FNSPrint 1, 24, 64, "Run away"
+      Else
+        FNSPrint 1, 24, 40, q$ + "I've nothin' man!" + q$
+        FNSPrint 1, 24, 52, "Punch him"
+        FNSPrint 1, 24, 64, "Run away"
+                                                                                                                                                                                                                                                      
+      End If
+      showmenu{menuentries}
+                                                                                                                                                                                                                                                      
+  End Select
+
+  Use BitMap db
+  status = #menu
+  menuselected = 0
+  prevmenuselected = -1
+
+End Statement
+
+
+Statement closemenu{}
+; Restores the bitmap with a simple animation to close the current menu
+  SHARED db, status, menux, menuy, menux2, menuy2, refresh, currentmenu
+  Use BitMap 1 - db
+
+  menuheight.w = menuy2 - menuy
+  menumid.w = menuheight LSR 1
+  ;Scroll 0, 0, 240, menuheight, menux, menuy, #bmap_menubuffer
+
+  If currentmenu <> #menu_title
+    MTSoundFX #snd_menudown, 64
+  End If
+
+  For i.w = 0 To menumid Step 4
+    VWait
+    Scroll 0, i, 240, 4, menux, menuy + i, #bmap_menubuffer
+    Scroll 0, menuheight - i - 4, 240, 4, menux, menuy + menuheight - i - 4, #bmap_menubuffer
+  Next i
+
+  FlushBuffer #bmap_menubuffer
+  status = #running
+  refresh = 1
+End Statement
+
+
+Function.w countchars{text$, char.w}
+  result.w = 0
+  lt.w = Peek.l(&text$ - 4)
+  For i.w = 0 To lt - 1
+    If Peek.b(&text$ + i) = char
+      result + 1
+    End If
+  Next i
+
+  Function Return result
+End Function
+
+
+Statement openspeechbubble{originx.w, originy.w, currentaction.w, message$}
+; Generates the requested menu and displays it on the screen
+  SHARED db, status, currentspeech, displayx, displayy, bubblex, bubbley, bubblewidth, bubbleheight, bubbletime, bubbleicontime, bubbleiconframe
+  SHARED speechcalloutx, speechcallouty, speechcalloutwidth, speechcalloutheight, speechcalloutbg, refresh
+
+  MTSoundFX #snd_bubble, 64
+
+  msgwidth.w = FNSLength(1, message$)
+  msglines.w = countchars{message$, 10} + 1
+
+  ;If msgwidth > 180
+  ;  msgwidth2.w = msgwidth
+    ;Repeat
+
+    ;Until msgwidth2 <= 180
+  ;End If
+
+  bubblewidth = msgwidth + 60
+  If bubblewidth < 80 Then bubblewidth = 80
+  If bubblewidth > 240 Then bubblewidth = 240
+
+  bubbleheight = msglines * 12 + 10
+  If bubbleheight < 32 Then bubbleheight = 32
+  If bubbleheight > 48 Then bubbleheight = 48
+  ;bubblex = displayx + 160 - (bubblewidth LSR 1)
+  bubblex = originx - (bubblewidth LSR 1)
+  If bubblex < displayx
+    bubblex = displayx + 10
+  End If
+
+  If bubblex > displayx + 320 - bubblewidth
+    bubblex = displayx + 310 - bubblewidth
+  End If
+
+  bubbley = displayy + 10
+
+  If originy < bubbley + bubbleheight + 10
+    originy = bubbley + bubbleheight + 10
+  End If
+
+  msgx.w = bubblewidth LSR 1
+  If bubbletime = -1 ; Shift the text left if the bubble has a "push button" icon.
+    msgx - 10
+  End If
+
+  msgy.w = 11
+  If msglines > 1
+    msgy = 7
+  End If
+
+  Use BitMap #bmap_speechbubblebuffer
+  Scroll bubblex, bubbley, bubblewidth, bubbleheight, 0, 0, db
+
+
+  ; Calculate the callout
+  speechcallouty.w = bubbley + bubbleheight
+  speechcalloutx1.w = bubblex + 16
+  If originx - speechcalloutx1 >= 120
+    speechcalloutx1 = originx - 119
+  End If
+
+  speechcalloutx2.w = speechcalloutx1 + 25
+  speechcalloutwidth = speechcalloutx2 - speechcalloutx1 + 1
+  If originx > speechcalloutx2
+    speechcalloutwidth = originx - speechcalloutx1 + 1
+  End If
+
+  speechcalloutx = speechcalloutx1
+  If originx < speechcalloutx
+    speechcalloutx = originx
+    speechcalloutwidth = speechcalloutx2 - originx
+  End If
+
+  speechcalloutheight = originy - speechcallouty + 1
+
+  Use BitMap #bmap_speechcalloutbuffer
+  Scroll speechcalloutx, speechcallouty, speechcalloutwidth, speechcalloutheight, 0, 0, db
+
+  calloutx1.w = speechcalloutx1 - speechcalloutx
+  calloutx2.w = speechcalloutx2 - speechcalloutx
+  origx.w = originx - speechcalloutx
+  origy.w = originy - speechcallouty
+
+  speechcalloutbg\x1 = calloutx1 + 1
+  speechcalloutbg\y1 = 0
+  speechcalloutbg\x2 = calloutx2 - 1
+  speechcalloutbg\y2 = 0
+  speechcalloutbg\x3 = origx
+  speechcalloutbg\y3 = origy ;- 1
+
+
+
+  ; Now we draw the stuff
+
+  Use BitMap #bmap_speechbubblescratch
+  ; copy over some background for the transparent effect (since we're not blitting this bitmap into the other)
+  Scroll 0, 0, 16, bubbleheight, 0, 0, #bmap_speechbubblebuffer
+  Scroll bubblewidth - 16, 0, 16, bubbleheight, bubblewidth - 16, 0, #bmap_speechbubblebuffer
+
+  Boxf 0, 16, bubblewidth - 1, bubbleheight - 17, #c_white
+  ;VWait
+  Boxf 16, 2, bubblewidth - 17, 15, #c_white
+  ;VWait
+  Boxf 16, bubbleheight - 16, bubblewidth - 17, bubbleheight - 1, #c_white
+
+  Blit #sh_bubblecornertl, 0, 0
+  Blit #sh_bubblecornerbl, 0, bubbleheight - 16
+  Blit #sh_bubblecornertr, bubblewidth - 16, 0
+  Blit #sh_bubblecornerbr, bubblewidth - 16, bubbleheight - 16
+
+  Line 16, 0, bubblewidth - 17, 0, #c_black
+  Line 16, 1, bubblewidth - 17, 1, #c_black
+
+  ;Line 16, bubbleheight - 1, bubblewidth - 17, bubbleheight - 1, #c_black
+  ;Line 16, bubbleheight - 2, bubblewidth - 17, bubbleheight - 2, #c_black
+
+  Line 16, bubbleheight - 1, speechcalloutx1 - bubblex , bubbleheight - 1, #c_black
+  Line 16, bubbleheight - 2, speechcalloutx1 - bubblex , bubbleheight - 2, #c_black
+
+  Line speechcalloutx2 - bubblex , bubbleheight - 1, bubblewidth - 17, bubbleheight - 1, #c_black
+  Line speechcalloutx2 - bubblex , bubbleheight - 2, bubblewidth - 17, bubbleheight - 2, #c_black
+                                                                                                                                                                                                                                                        
+
+  Line 0, 16, 0, bubbleheight - 16, #c_black
+  Line 1, 16, 1, bubbleheight - 16, #c_black
+
+  Line bubblewidth - 2, 16, bubblewidth - 2, bubbleheight - 16, #c_black
+  Line bubblewidth - 1, 16, bubblewidth - 1, bubbleheight - 16, #c_black
+
+
+
+  BitMapOutput #bmap_speechbubblescratch
+  FNSOutput #bmap_speechbubblescratch;, 1
+  FNSClipOutput
+
+  FNSPrefs %1, #c_black
+  FNSPrint 1, msgx, msgy, &message$
+
+
+
+
+  Use BitMap #bmap_speechcalloutscratch
+  Scroll 0, 0, speechcalloutwidth, speechcalloutheight, 0, 0, #bmap_speechcalloutbuffer
+
+
+  Polyf 3, &speechcalloutbg, #c_white
+
+  Line calloutx1, 0, origx, origy, #c_black, 1
+  Line origx, origy, calloutx2, 0, #c_black, 1
+
+  ;Line calloutx1 + 1, 0, origx, origy, #c_black
+  ;Line calloutx2 - 1, 0, origx - 1, origy - 1, #c_black
+
+
+
+
+  ; And now apply the bitmaps to the displayed bitmap  #
+  Use BitMap 1 - db
+  CNIF #debug
+    dbugprintstring{"Bitmap: " + Str$(1 - db)}
+  CEND
+
+
+  For i.w = speechcalloutheight - 10 To 0 Step -10
+    VWait
+    Scroll 0, i, speechcalloutwidth, 10, speechcalloutx, speechcallouty + i, #bmap_speechcalloutscratch
+  Next i
+
+  ; Special case for when the height isn't a multiple of 4
+  If i <> 0
+    VWait
+    Scroll 0, 0, speechcalloutwidth, 10, speechcalloutx, speechcallouty, #bmap_speechcalloutscratch
+  End If
+                                                                                                                                                                                                                                                        
+
+
+
+  For i.w = bubbleheight - 10 To 0 Step -10
+    VWait
+    Scroll 0, i, bubblewidth, 10, bubblex, bubbley + i, #bmap_speechbubblescratch
+  Next i
+
+  ; Special case for when the height isn't a multiple of 4
+  If i <> 0
+    VWait
+    Scroll 0, 0, bubblewidth, 10, bubblex, bubbley, #bmap_speechbubblescratch
+  End If
+                                                                                                                                                                                                                                                        
+
+
+  ;Use BitMap db
+
+  ;if bubbletime = -1
+    status = #speech
+
+  ;Else
+  ;  Delay_ bubbletime
+  ;  closespeechbubble{}
+  ;End If
+  bubbleiconframe = 0
+  bubbleicontime = 0
+  ;menuselected = 0
+  ;prevmenuselected = -1
+  refresh = 0
+End Statement
+
+
+Statement closespeechbubble{}
+; Restores bitmap in a simple animation to close speech bubble
+  SHARED db, status, bubblex, bubbley, bubblewidth, bubbleheight, speechcalloutwidth, speechcalloutheight, speechcalloutx, speechcallouty, refresh, currentspeech
+  Use BitMap 1 - db
+
+  For i.w = speechcalloutheight - 10 To 0 Step -10
+    VWait
+    Scroll 0, i, speechcalloutwidth, 10, speechcalloutx, speechcallouty + i, #bmap_speechcalloutbuffer
+  Next i
+
+  ; Special case for when the height isn't a multiple of 4
+  If i <> 0
+    VWait
+    Scroll 0, 0, speechcalloutwidth, 10, speechcalloutx, speechcallouty, #bmap_speechcalloutbuffer
+  End If
+                                                                                                                                                                                                                                                         
+
+
+
+  For i.w = bubbleheight - 10 To 0 Step -10
+    VWait
+    Scroll 0, i, bubblewidth, 10, bubblex, bubbley + i, #bmap_speechbubblebuffer
+  ;  Scroll 0, menuheight - i - 4, 240, 4, menux, menuy + menuheight - i - 4, #bmap_menubuffer
+  Next i
+
+  If i <> 0
+    VWait
+    Scroll 0, 0, bubblewidth, 10, bubblex, bubbley, #bmap_speechbubblebuffer
+  End If
+  FlushBuffer #bmap_speechbubblebuffer
+  status = #running
+  refresh = 1
+  currentspeech = 0
+End Statement
+
+
+Function.w checkhighscore{score.w}
+; Checks the given score and inserts a new entry for it in the table if it's high enough
+; Returns the new position, or 0 if it didn't qualify
+  SHARED highscores()
+  result.w = 0
+  For i.w = 10 To 1 Step -1
+    If score > highscores(i)\totalmins
+      result = i
+    End If
+  Next i
+  If result <> 0
+    If result < 10
+      For i = 9 To result Step -1
+        highscores(i + 1)\name = highscores(i)\name
+        highscores(i + 1)\totalmins = highscores(i)\totalmins
+      Next i
+    End If
+    highscores(result)\name = "---"
+    highscores(result)\totalmins = score
+  End If
+
+  Function Return result
+End Function
+
+
+Function.w maprawkey{rk.w}
+; Maps a given raw keycode to a character based on the keymap$ string
+  SHARED keymap$
+  If rk <= $41
+    result.w = Peek.b(&keymap$ + rk)
+  Else
+    result = 0
+  End If
+  Function Return result
+End Function
+
+
+Function.s getnewhighscore{scorepos.w}
+; Gathers the name of a new high score entry
+  SHARED keymap$, status
+
+  result$ = ""
+  DEFTYPE .w char, flashcounter, kc, prevkc, rk, key
+  Colour #c_red, #c_menubg
+  scoreypos.w = scorepos * 2 + 4
+
+  ;BitMapInput 0
+  Use BitMap 0
+  BitMapOutput 0
+  While char < 3
+    VWait
+    flashcounter + 1
+    If flashcounter = 25
+      Locate 11 + char, scoreypos
+      Print " "
+    Else
+      If flashcounter = 50
+        Locate 11 + char, scoreypos
+        Print "-"
+        flashcounter = 0
+      End If
+    End If
+
+    kc = KeyCode
+    If kc <> prevkc
+      If kc & %1 ; Key just pressed, not released
+        rk.w = $7f - (kc LSR 1) ; Quick 'n' dirty translation of keyboard register to rawkey
+        key.w = maprawkey{rk}
+        If key > 0
+          key$ = Chr$(key)
+
+          ;BitMapOutput 0
+          Locate 11 + char, scoreypos
+          Print key$
+
+          char + 1
+          result$ + key$
+          key$ = ""
+        End If
+      End If
+    End If
+    prevkc = kc
+  End While
+
+  status = #highscores
+  Function Return result$
+End Function
+

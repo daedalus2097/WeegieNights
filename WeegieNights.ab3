@@ -1,0 +1,2625 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = "WeegieNights"
+; ExeFile         = "WeegieNights"
+; CreateIcon      = 1
+; Residents       = "all.res,bb2objtypes.res"
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 10240
+; MakeSmallest    = 0
+; FuncOptimize    = 1
+; Version         = 0.0.0
+; NumberOfBuilds  = 2092
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 80000
+; RuntimeDebug    = 0
+; DebugInfo       = 0
+; CreateDbgFile   = 65535
+; OverflowCheck   = 0
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 3
+; CursorColumn    = 17
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 5
+; Max GadgetList  = 5
+; Max Shape       = 600
+; Max Bank        = 5
+; Max MenuList    = 5
+; Max BlitzFont   = 4
+; Max GTList      = 20
+; Max Palette     = 10
+; Max BitMap      = 10
+; Max Screen      = 5
+; Max IntuiFont   = 5
+; Max Window      = 20
+; Max IconInfo    = 1
+; Max MUIObject   = 50
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 5
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max Tape        = 5
+; Max Sound       = 20
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
+; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
+; /XTRA
+
+
+SYNTAX 2
+OPTIMIZE 4
+WBStartup
+
+ver$ = "$VER: WeegieNights 0.1 (31.20.2022)"
+
+XINCLUDE "xml.include"
+
+
+#debug = 0          ; Enables debug feedback
+#splitscroll = 0    ; Enables bitmap split for vertical scrolling
+#orthogonal = 0     ; Enables up/down/left/right movement instead of isometric diagonal movement
+#framecounter = 0   ; Enables the frame counter
+#speedy = 0         ; Speeds up the in-game clock
+
+XINCLUDE "ptplayer_inc.ab3"
+XINCLUDE "WeegieInit.ab3"
+XINCLUDE "WeegieAssets.ab3"
+XINCLUDE "WeegieFuncs.ab3"
+
+
+
+loadtiledefs{1}
+
+CNIF #debug
+  For i = 0 To 20
+    Print tiletrans(i)\shapeid, ", "
+  Next i
+  NPrint ""
+CEND
+
+loadmap{1}
+
+mapheight = 32
+
+worldwidth = mapwidth * 64 ;5000
+worldheight = mapheight * 16 ; 512
+
+
+CNIF #debug
+  NPrint "World width: ", worldwidth
+  NPrint "World height: ", worldheight
+CEND
+
+loaditemdefs{}
+loadshopdefs{}
+loadnpcdefs{}
+
+loadhighscores{}
+
+;End
+
+Delay_ 50
+
+
+
+
+BLITZ
+
+
+MTInstall 1
+
+;MTInit 0, 0
+;MTPlay On
+Gosub starttitlemusic
+splashscreens{}
+
+
+;initgamedisplay{}
+
+
+
+Use BitMap 0
+
+RunErrsOff
+SetInt 5
+  framecount + 1
+End SetInt
+RunErrsOn
+
+  ;DisplayBitMap 0, db, displayx, displayy
+
+USEPATH player
+
+;Gosub updatetime
+
+;Gosub updatemoney
+
+status = #titlescreen
+
+titlescreen{}
+fadeup{#pal_titlescreen, 20}
+
+.mainloop
+Repeat
+  VWait
+
+  If refresh Then DisplayBitMap 0, db, displayx, displayy ;+ #bmapyoffset
+  ;DisplayUser 0, prevzonelevel.w, cop2$, 8
+  ;DisplayUser 0, zonelevel, cop$, 8
+  ;VWaitPos 10
+  ;DisplayBitMap 0, db, displayx, displayy + 20
+  ;DisplayUser 0, 150, cop$
+  ;If bmapypos < 198
+    ;DisplayUser 0, bmapypos, cop$
+  CNIF #splitscroll
+    CustomString 0, 0, splitpos, cop$
+  CEND
+    ;CustomString 0, 0, zonelevel, cop$
+  ;Else
+    ;CustomString 0, 0, 100, cop$
+  ;End If
+  ;CustomString 0, 48, zonelevel + 10, cop2$
+
+
+  jx = Joyx(1)
+  jy = Joyy(1)
+  jb = Joyb(1)
+
+  If RawStatus($4F)
+    jx = -1
+  Else
+    If RawStatus($4E)
+      jx = 1
+    End If
+  End If
+
+  If RawStatus($4C)
+    jy = -1
+  Else
+    If RawStatus($4D)
+      jy = 1
+    End If
+  End If
+
+  If RawStatus($40)
+    jb = 1
+  Else
+    If RawStatus($44)
+      jb = 1
+    End If
+  End If
+
+  esckey = RawStatus($45)
+
+
+  If refresh
+    If zonelevelpointer < 190
+      DisplayScroll 0, &lineoffsets0(0), &lineoffsets0(0)
+    Else
+      If zonelevelpointer < 250
+        DisplayScroll 0, &lineoffsets1(lineoffsetcounter), &lineoffsets1(lineoffsetcounter)
+      Else
+        DisplayScroll 0, &lineoffsets2(lineoffsetcounter), &lineoffsets2(lineoffsetcounter)
+      End If
+
+      lineoffsetcounter + 0.5
+      If lineoffsetcounter >= 20
+        lineoffsetcounter = 0
+      End If
+    End If
+  End If
+
+  If jb
+    If prevjb = 0
+      jclick = 1
+    Else
+      jclick = 0
+    End If
+  Else
+    jclick = 0
+  End If
+
+
+
+  Select status
+    Case #running
+
+      db = 1 - db
+
+      !bgcol $FFF
+
+      UnBuffer db
+
+      !bgcol $777
+
+      ;lineoffsetcounter + 0.5
+      ;If lineoffsetcounter >= 14
+      ;  lineoffsetcounter = 0
+      ;End If
+
+
+
+
+      Use BitMap db
+
+
+      Gosub doplayermovement
+
+
+
+      !bgcol $F00
+
+      Gosub donpcmovement
+
+
+      Gosub drawobjects
+
+
+      heartbeatframes + 1
+      If heartbeatframes >= nextminuteframe
+        CNIF #speedy
+          nextminuteframe = heartbeatframes + 1;5;1;10
+        CELSE
+          nextminuteframe = heartbeatframes + 5;1;10
+        CEND
+        minutecounter + 1
+
+        If minutecounter > 10
+          minutecounter = 0
+          timemins + 1
+          score + 1
+          If timemins >= 60
+            drunkarmedflag = 1
+            prevzonelevelpointer = 1
+            timemins = 0
+            timehrs + 1
+            If timehrs >= 24
+              timehrs = 0
+              timedays + 1
+            End If
+          End If
+          Gosub updatetime
+        End If
+
+      End If
+
+      If heartbeatframes >= nextzoneframe
+        CNIF #speedy
+          nextzoneframe = heartbeatframes + 2;5;2;10
+        CELSE
+          nextzoneframe = heartbeatframes + 5;2;10
+        CEND
+        Gosub calculatezonelevel
+      End If
+                                                                                                                                                                                                                                                      
+
+
+      !bgcol $700
+
+      displayx = \worldx - 160
+
+      ;If displayx < 32 Then displayx = 32
+      If displayx < #displayxmin Then displayx = #displayxmin
+      If displayx > worldwidth - 320 - 32 Then displayx = worldwidth - 320 - 32
+
+      ;bmapx = displayx & %111111111 ; Move this into per-pixel loop(?)
+
+
+      displayy = \worldy - 128
+      ;If displayy < 0 Then displayy = 0
+      If displayy < #displayymin Then displayy = #displayymin
+      If displayy > worldheight - 200 Then displayy = worldheight - 200
+
+      displaytiley = (displayy LSR 5) LSL 1
+
+      displayintiley = displayy & %11111
+
+
+
+
+
+
+      !bgcol $0F0
+    ; ***
+    ; *** Scrolling routines
+    ; ***
+
+    ; *** Scrolling left
+
+      If displayx < prevdisplayx ; scrolling left
+        For i = prevdisplayx - 1 To displayx Step -1
+          displaytilex = i LSR 6
+          displaytilex2 = i LSR 5
+          displayintilex = #tilewidth LSR 1 - (i & %11111) - 1
+
+          drawtilexx = displaytilex2 - 4
+          If drawtilexx >= -1
+
+          oddcol = drawtilexx & %1
+          drawtilexx = drawtilexx LSR 1
+
+          drawtilexy = (displayintilex & $FFFE)
+          drawtilexxworld = drawtilexx LSL 6
+          drawtilexyworld = drawtilexy LSL 4
+
+          If drawtilexx >= 0
+            CNIF #debug
+              dbugprintstring{"Y Phase: " + Str$(drawphasey) + " Tile: " + Str$(drawtilexx) + ", " + Str$(drawtilexy)}
+            CEND
+            If oddcol
+              drawshape = map(drawtilexx, drawtilexy + 1)\tile
+            Else
+              drawshape = map(drawtilexx, drawtilexy)\tile
+            End If
+
+
+            ;drawshape = map(drawtilexx, drawtilexy)\tile
+            ; This is only needed for erasing empty tiles. Empty tiles should be hidden in buildings so this can probably be removed at the end
+            If drawshape = -1
+              drawshape = 0
+              BlitMode EraseMode
+            End If
+
+            ;BlitMode SolidMode
+            If oddcol
+
+            CNIF #splitscroll
+
+            RunErrsOff
+            If drawtilexy >= 1
+            CEND
+              ;Blit drawshape, drawtilexx LSL 6 + 32, drawtilexy LSL 4 + 16 + yoffset
+              Blit drawshape, drawtilexxworld + 32, drawtilexyworld + 16 + yoffset
+              CNIF #splitscroll
+              End If
+              CEND
+            Else
+              CNIF #splitscroll
+            If drawtilexy >= 2
+              CEND
+              Blit drawshape, drawtilexxworld, drawtilexyworld + yoffset
+              CNIF #splitscroll
+              End If
+              CEND
+            End If
+
+            BlitMode CookieMode
+          End If
+
+            ; Buildings
+
+            ;dbugprintstring{"Y Phase: " + Str$(drawphasey) + " Bldg: " + Str$(drawtilex - 1) + ", " + Str$(drawtiley + 1)}
+
+            ; Draw one column behind the ground tiles
+            ;If drawtilexx >= 0
+              If oddcol
+                drawshape = map(drawtilexx + 1, drawtilexy + 2)\building
+                If map(drawtilexx + 1, drawtilexy + 2)\tileside = 2
+                  xoffset = 32
+                Else
+                  xoffset = 0
+                End If
+              Else
+                drawshape = map(drawtilexx, drawtilexy + 1)\building
+                If map(drawtilexx, drawtilexy + 1)\tileside = 2
+                  xoffset = 32
+                Else
+                  xoffset = 0
+                End If
+
+              End If
+
+              If drawshape <> -1
+                If oddcol
+            ;If drawtilexy >= 2
+                  If drawtilexy < mapheight - 1
+                    Blit drawshape, drawtilexxworld + 64 + xoffset, drawtilexyworld + 32 + yoffset
+                  End If
+            ;  End If
+                Else
+
+            CNIF #splitscroll
+            If drawtilexy >= 1
+            CEND
+                  If drawtilexy < mapheight - 1
+                    Blit drawshape, drawtilexxworld + 32 + xoffset, drawtilexyworld + 16 + yoffset
+                  End If
+            CNIF #splitscroll
+              End If
+            CEND
+                End If
+              End If
+            ;End If
+
+            ; Copy the updated regions to the other bitmap
+            Use BitMap 1 - db
+            If oddcol
+              If map(drawtilexx + 1, drawtilexy + 2)\building = -1
+                BlockScroll drawtilexxworld + 32, drawtilexyworld + 16 + yoffset, 64, 32, drawtilexxworld + 32, drawtilexyworld + 16 + yoffset, db
+
+              Else
+                BlockScroll drawtilexxworld + 32, drawtilexyworld + 16 + yoffset, 96, 80, drawtilexxworld + 32, drawtilexyworld + 16 + yoffset, db
+              End If
+            Else
+              If map(drawtilexx, drawtilexy + 1)\building = -1
+                BlockScroll drawtilexxworld, drawtilexyworld + yoffset, 64, 32, drawtilexxworld, drawtilexyworld + yoffset, db
+
+              Else
+                BlockScroll drawtilexxworld, drawtilexyworld + yoffset, 96, 48, drawtilexxworld, drawtilexyworld + yoffset, db
+              End If
+
+            End If
+            Use BitMap db
+            RunErrsOn
+
+
+          End If
+        Next i
+
+        xscrollflag = -1
+      End If
+
+
+
+    ; *** Scrolling right
+
+      If displayx > prevdisplayx ; Scrolling right
+        For i = prevdisplayx + 1 To displayx
+
+          displaytilex = i LSR 6 ; Each column is 64 pixels wide
+          displaytilex2 = i LSR 5 ;displaytilex LSL 1 ; LSR 5 ; Each column is 32 pixels wide
+          ;displayintilex = i & %111111
+          displayintilex = i & %11111
+
+
+
+          drawtilexx = displaytilex2 + 12 ;6
+
+          If drawtilexx < mapwidth2
+
+            oddcol = drawtilexx & %1
+            drawtilexx = drawtilexx LSR 1
+
+            drawtilexy = (displayintilex & $FFFE)
+            drawtilexxworld = drawtilexx LSL 6
+            drawtilexyworld = drawtilexy LSL 4
+                                                                                                                                                                                                                                                        
+
+            RunErrsOff
+
+            CNIF #debug
+              dbugprintstring{"Y Phase: " + Str$(drawphasey) + " Tile: " + Str$(drawtilexx) + ", " + Str$(drawtilexy)}
+            CEND
+            If oddcol
+              drawshape = map(drawtilexx, drawtilexy + 1)\tile
+              If map(drawtilexx, drawtilexy + 1)\tileside = 2
+                xoffset = 32
+              Else
+                xoffset = 0
+              End If
+
+            Else
+              drawshape = map(drawtilexx, drawtilexy)\tile
+              If map(drawtilexx, drawtilexy)\tileside = 2
+                xoffset = 32
+              Else
+                xoffset = 0
+              End If
+            End If
+
+            If drawshape = -1
+              drawshape = 0
+              BlitMode EraseMode
+            End If
+
+            If oddcol
+
+              CNIF #splitscroll
+              If drawtilexy >= 1
+              CEND
+                If drawtilexy < mapheight + 1
+                  Blit drawshape, drawtilexxworld + 32 + xoffset, drawtilexyworld + 16 + yoffset
+                End If
+              CNIF #splitscroll
+              End If
+              CEND
+            Else
+              ;If drawtilexy >= 2
+              If drawtilexy < mapheight
+                Blit drawshape, drawtilexxworld + xoffset, drawtilexyworld + yoffset
+              End If
+              ;End If
+            End If
+            BlitMode CookieMode
+            If oddcol
+              drawshape = map(drawtilexx, drawtilexy + 2)\building
+              If map(drawtilexx, drawtilexy + 2)\tileside = 2
+                xoffset = 32
+              Else
+                xoffset = 0
+              End If
+
+            Else
+              drawshape = map(drawtilexx - 1, drawtilexy + 1)\building
+              If map(drawtilexx - 1, drawtilexy + 1)\tileside = 2
+                xoffset = 32
+              Else
+                xoffset = 0
+              End If
+
+            End If
+
+            If drawshape <> -1
+              If oddcol
+                If drawtilexy < mapheight + 2
+                  Blit drawshape, drawtilexxworld + xoffset, drawtilexyworld + 32 + yoffset
+                End If
+              Else
+            CNIF #splitscroll
+            If drawtilexy >= 1 ; 2
+            CEND
+              If drawtilexy < mapheight + 1
+                Blit drawshape, drawtilexxworld - 32 + xoffset, drawtilexyworld + 16 + yoffset
+              End If
+            CNIF #splitscroll
+            End If
+            CEND
+              End If
+            End If
+
+            ; Copy changes over to other bitmap
+            Use BitMap 1 - db
+            If oddcol
+              If map(drawtilexx, drawtilexy + 2)\building = -1
+                BlockScroll drawtilexxworld + 32, drawtilexyworld + 16 + yoffset, 64, 32, drawtilexxworld + 32, drawtilexyworld + 16 + yoffset, db
+
+              Else
+                BlockScroll drawtilexxworld, drawtilexyworld  + 16 + yoffset, 96, 80, drawtilexxworld, drawtilexyworld + 16 + yoffset, db
+              End If
+            Else
+              If map(drawtilexx - 1, drawtilexy + 1)\building = -1
+                BlockScroll drawtilexxworld, drawtilexyworld + yoffset, 64, 32, drawtilexxworld, drawtilexyworld + yoffset, db
+
+              Else
+                BlockScroll drawtilexxworld - 32, drawtilexyworld + yoffset, 96, 48, drawtilexxworld - 32, drawtilexyworld + yoffset, db
+              End If
+
+            End If
+            Use BitMap db
+                RunErrsOn
+
+          End If
+        Next i
+
+        xscrollflag = 1
+      End If
+
+      If currentspeech
+
+      End If
+
+      If interactflag
+        Gosub interact
+        interactflag = 0
+      End If
+
+
+      prevdisplayx = displayx
+      prevdisplayy = displayy
+
+
+      ;checkx = \worldx
+      ;checky = \worldy
+      ;Gosub calculatetilepos
+      ;\mapx = tilex
+      ;\mapy = tiley
+
+      !bgcol $00F
+
+
+    Case #menu
+      ;Use BitMap 1 - db
+      If jy = 1 AND prevjy <> 1
+        menuselected + 1
+        If menuselected > menuentries
+          menuselected = 0
+        End If
+        If currentmenu <> #menu_title
+          MTSoundFX #snd_menutick, 64
+        End If
+      End If
+
+      If jy = -1 AND prevjy <> -1
+        menuselected - 1
+        If menuselected < 0
+          menuselected = menuentries
+        End If
+        If currentmenu <> #menu_title
+          MTSoundFX #snd_menutick, 64
+        End If
+        ;MTSoundFX 0, 64
+      End If
+                                                                                                                                                                                                                                                    
+      If menuselected <> prevmenuselected
+        Use BitMap 1 - db
+        UnBuffer #bmap_menubuffer
+        BBlit #bmap_menubuffer, #sh_menupointer, menux + 10, menuy + 41 + menuselected * 12
+        ;Boxf
+        ;Blit 47
+      End If
+
+      If jb = 1
+        If prevjb = 0
+          If currentmenu <> #menu_title
+            MTSoundFX #snd_menuselect, 64
+          End If
+          Gosub domenus
+        End If
+      End If
+
+      prevmenuselected = menuselected
+      ;Use BitMap db
+    Case #speech
+      closebubble = False
+      If bubbletime = -1
+        bubbleicontime - 1
+        If bubbleicontime <= 0
+          bubbleicontime = 20
+          bubbleiconframe = 1 - bubbleiconframe
+          Use BitMap 1 - db
+          VWait
+          UnBuffer #bmap_speechbubblebuffer
+          If bubbleiconframe = 1
+            BBlit #bmap_speechbubblebuffer, #sh_firebutton1, bubblex + bubblewidth - 30, bubbley + bubbleheight - 20
+         Else
+            BBlit #bmap_speechbubblebuffer, #sh_firebutton2, bubblex + bubblewidth - 30, bubbley + bubbleheight - 20
+          End If
+        End If
+        If jclick ;jb = 1 AND prevjb = 0
+          closebubble = True
+          MTSoundFX #snd_menuselect, 64
+          ;closespeechbubble{}
+        End If
+      Else
+        If bubbletime > 0
+          bubbletime - 1
+        End If
+        If bubbletime = 0
+          closebubble = True
+          ;closespeechbubble{}
+        End If
+      End If
+      If closebubble
+        Select currentspeech
+          Case #sp_shop_open
+            currentmenu = #menu_shop
+            closespeechbubble{}
+            openmenu{currentmenu, specialid, 0}
+
+          Case #sp_shop_thanks
+            closespeechbubble{}
+            If itemdefs(itemid)\kind = #item_drink
+              MTSoundFX #snd_gulp, 64
+            End If
+
+          Case #sp_npc_randomer
+            Gosub updatemoney
+            closespeechbubble{}
+
+          Case #sp_npc_police
+            closespeechbubble{}
+            If npcs(specialid)\hunting ; Wanted man
+              status = #endgame
+              endgametype = #end_arrested
+            End If
+
+          Case #sp_npc_dealer
+            currentmenu = #menu_npc_dealer
+            closespeechbubble{}
+            openmenu{currentmenu, specialid, 0}
+
+          Case #sp_npc_mugger
+            currentmenu = #menu_npc_mugger
+            closespeechbubble{}
+            openmenu{currentmenu, specialid, 0}
+          Default
+            closespeechbubble{}
+        End Select
+      End If
+
+    Case #endgame
+      statuscounter + 1
+
+      If endgametype <> #end_drunk ;zonelevelpointer = 0
+        statuscounter = 100
+      End If
+
+      If statuscounter = 25
+        \animframe = 3
+      End If
+
+      db = 1 - db
+
+      UnBuffer db
+                                                                                                                                                                                                                                                    
+      Use BitMap db
+
+      Gosub drawobjects
+      If statuscounter = 100
+        ;fadedown{#pal_main, 100}
+        statuscounter = 0
+        ;refresh = 0
+        status = #gameover
+        ;currentmenu = #menu_title
+        drawmenubg{3}
+        FNSPrefs %11, #c_white
+        FNSPrint 1, 120, 8, "Game Over"
+        FNSPrefs %1, #c_black
+        Select endgametype
+          Case #end_sober
+        ;If zonelevelpointer = 0
+            FNSPrint 1, 120, 40, "You sobered up..." + Chr$(10) + "Time to go home"
+          Case #end_drunk
+        ;Else
+            FNSPrint 1, 120, 40, "You got too drunk and had" + Chr$(10) + "to be carted home by a good samaritan"
+        ;End If
+          Case #end_arrested
+            FNSPrint 1, 120, 40, "You get arrested and spend some time" + Chr$(10) + "at the pleasure of the local constabulary"
+          Case #end_dead
+            FNSPrint 1, 120, 40, "You got beaten up and taken" + Chr$(10) + "to hospital in an ambulance"
+          Case #end_bin
+            FNSPrint 1, 120, 40, "You climbed into a bin and had a nap." + Chr$(10) + "You should probably go home..."
+                                                                                                                                                                                                                                                
+        End Select
+        FNSPrefs %1, #c_white
+        FNSPrint 1, 120, 80, "Press Fire"
+        ;db = 0
+        showmenu{3}
+      End If
+
+    Case #gameover
+
+      If jclick
+        closemenu{}
+        refresh = 0
+        fadedown{#pal_main, 20, 1}
+        MTEnd
+        titlescreen{}
+        Gosub starttitlemusic
+        ;MTInit 0, 0
+        ;MTPlay On
+        scorepos = checkhighscore{score}
+        If scorepos
+          showhighscores{scorepos, 0}
+          status = #newhighscore
+          highscores(scorepos)\name = getnewhighscore{scorepos}
+          FNSPrefs %1, #c_white
+          FNSPrint 1, 160, 210, "Press Fire"
+
+        Else
+          showhighscores{0, 1}
+        End If
+        ;fadeup{#pal_titlescreen, 20}
+      End If
+
+    Case #titlescreen
+      statuscounter + 1
+      FNSOutput 0, On
+
+      FNSPrefs %11, #c_white
+      If statuscounter = 1
+        FNSShadowPrint 1, 160, 200, "Press Fire", %11, #c_white, #c_black
+        ;FNSPrint 1, 160, 200, "Press Fire"
+      Else
+        If statuscounter = 20
+          BlockScroll 128, 196, 128, 16, 128, 196, 1
+        Else
+          If statuscounter = 40
+            statuscounter = 0
+          End If
+        End If
+      End If
+
+      If jclick
+        BlockScroll 128, 196, 128, 16, 128, 196, 1
+        status = #menu
+        currentmenu = #menu_title
+        openmenu{currentmenu, 0, 0}
+      Else
+        If esckey
+          quit = 1
+        End If
+      End If
+
+    Case #highscores
+      If jclick
+        fadedown{#pal_titlescreen, 20, 0}
+        BlockScroll 0, 0, 320, 256, 0, 0, 1
+        fadeup{#pal_titlescreen, 20}
+        status = #titlescreen
+      End If
+
+    Case #credits
+      If jclick
+        aboutpage + 1
+        If aboutpage = 2
+          fadedown{#pal_titlescreen, 20, 0}
+          BlockScroll 0, 0, 320, 256, 0, 0, 1
+          fadeup{#pal_titlescreen, 20}
+          status = #titlescreen
+          aboutpage = 0
+        Else
+          showcredits{aboutpage}
+        End If
+      End If
+
+    Case #about
+      If jclick
+        aboutpage + 1
+        If aboutpage = 3
+          fadedown{#pal_titlescreen, 20, 0}
+          BlockScroll 0, 0, 320, 256, 0, 0, 1
+          fadeup{#pal_titlescreen, 20}
+          status = #titlescreen
+          aboutpage = 0
+        Else
+          showabout{aboutpage}
+        End If
+      End If
+                                                                                                                                                                                                                                                        
+  End Select
+
+
+; *** End of various game states
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  CNIF #framecounter
+    BitMapOutput #bmap_statusbar
+    Locate 37, 0
+    Print prevframecount, " "
+  CEND
+
+  CNIF #debug
+    ;If jx OR jy
+      BitMapOutput #bmap_statusbar
+      Locate 0, 0
+      ;NPrint "Player"
+      NPrint "World: ", \worldx, ", ", \worldy, "    "
+      NPrint "Map: ", \mapx, ", ", \mapy, "   "
+      NPrint "InTile: ", intilex, ", ", intiley, "  ";Region: ", region$, "    "
+      ;NPrint "Framecount: ", prevframecount, " "
+      ;NPrint "dx\dy: ", \dx, ", ", \dy, "    "
+      ;NPrint "Food: ", food, "   "
+      ;NPrint "Booze: ", booze, "   "
+      ;Locate 20, 0
+      ;Print "Screen"
+      Locate 20, 0
+      Print "Start: ", starttilex, ", ", starttiley, "   "
+      Locate 20, 1
+      Print "DrawTile: ", drawtilexx, ", ", drawtilexy, "  "
+      Locate 20, 2
+      Print "DrawTileW: ", drawtilexxworld, ", ", drawtilexyworld, "  "
+      Locate 20, 3
+      Print "DispTile: ", displaytilex, ", ", displaytiley, "  "
+      Locate 20, 4
+      Print "Phase XY: ", drawphasex, ", ", drawphasey, "  "
+      Locate 20, 5
+      Print "InTile: ", displayintilex, ", ", displayintiley, "  "
+    ;End If
+  CEND
+
+
+  ;If RawStatus($4F)
+  ;  zonelevel - 1
+  ;  If zonelevel < 0
+  ;    zonelevel = 0
+  ;  End If
+  ;End If
+  ;
+  ;If RawStatus($4E)
+  ;  zonelevel + 1
+  ;  If zonelevel > 311
+  ;    zonelevel = 311
+  ;  End If
+  ;End If
+
+  CNIF #debug
+    d.b = RawStatus($22)
+    If d ; D
+      If prevd.b = 0
+        If booze < 30000
+          booze + 2000
+        End If
+      End If
+    End If
+    prevd = d
+
+    f.b = RawStatus($23) ; F
+    If f
+      If prevf.b = 0
+        If food < 27000
+          food + 5000
+        End If
+      End If
+    End If
+    prevf = f
+  ;CEND
+
+
+  If RawStatus($42) ; Tab
+    status = #speech
+    bubbletime = -1
+    currentspeech = #sp_talk_to_myself
+    msg$ = "This is a test" + Chr$(10) + "1..2..3.." + Chr$(10) + "Line 3!!"
+    msg$ = "I sheem to *hic* ... Sorry, had too much " + Chr$(10) + "*hic* ... what wash I shayin'? I *hic* ..." + Chr$(10) + "yeah I sheem to be lost..."
+    openspeechbubble{\worldx, \worldy - 18, 0, msg$}
+  End If
+  CEND
+
+  prevjx = jx
+  prevjy = jy
+  prevjb = jb
+
+  If esckey ;RawStatus($45)
+    ;status = #pause
+    If status = #running
+      currentmenu = #menu_pause
+      openmenu{currentmenu, 0, 1}
+    End If
+  End If
+
+  ;If RawStatus($45) Then quit = True
+
+  !bgcol $007
+  CNIF #splitscroll
+    Gosub updatesplit
+  CEND
+  ;prevzonelevel.w = zonelevel
+
+
+  While framecount < 2
+  End While
+
+  prevframecount = framecount
+  framecount = 0
+Until quit
+
+.mainloopend
+
+fadedown{#pal_titlescreen, 20, 1}
+
+MTEnd
+MTRemove
+
+AMIGA
+
+savehighscores{}
+
+End
+
+
+BLITZ
+
+.calculatetilepos
+; *** Calculates the tile coordinates from a given set of pixel coordinates
+
+  tilex = checkx LSR 6 ;/ #tilewidth
+  tiley = (checky LSR 5) LSL 1 ;/ #tileheight) * 2
+
+  inregionx.w = checkx & %111111 ;MOD #tilewidth
+  inregiony.w = checky & %11111 ;MOD #tileheight ;) * 2
+  inregiony2.w = inregiony LSL 1
+
+  CNIF #debug
+    region$ = "Mid"
+  CEND
+
+  If inregionx < 32 ; #tilewidth / 2 ; Left
+    If (inregiony2) < 32 ; #tileheight / 2 ; Top left
+      If inregionx + inregiony2 < 31 ;#tilewidth ;/ 2 + #tileheight ; Outside tile
+        tilex - 1 ;regiondx = -1
+        tiley - 1 ;regiondy = -1
+        CNIF #debug
+          region$ = "UL "
+        CEND
+      End If
+    Else ; Bottom left
+      If inregionx + (62 - inregiony2) < 31 ;#tilewidth ;/ 2 + #tileheight ; Outside tile
+        tilex - 1 ;regiondx = -1
+        tiley + 1 ;regiondy = 1
+        CNIF #debug
+          region$ = "BL "
+        CEND
+      End If
+    End If
+  Else ; Right
+    If inregiony < 16 ;#tileheight / 2 ; Top right
+      If (63 - inregionx) + inregiony2 < 31 ;>= #tilewidth ;/ 2 + #tileheight ; Outside tile
+        ;regiondx = -1
+        tiley - 1 ;regiondy = -1
+        CNIF #debug
+          region$ = "UR "
+        CEND
+      End If
+    Else ; Bottom right
+      If (63 - inregionx) + (62 - inregiony2) < 31 ; #tilewidth ;/ 2 + #tileheight ; Outside tile
+        ;regiondx = -1
+        tiley + 1 ;regiondy = 1
+        CNIF #debug
+          region$ = "BR "
+        CEND
+      End If
+    End If
+                                                                                                                                                                                                                                                      
+  End If
+
+Return
+
+
+;.checkwalkable
+;  Gosub calculatetilepos
+;
+;  iswalkable = map(tilex, tiley)\walkable
+;Return
+
+
+
+.calculatezonelevel
+  food - fooddelta
+  If food < 0
+    food = 0
+  End If
+
+  foodfactor = food LSR 6;7
+  If foodfactor > 18 Then foodfactor = 18 ;16 Then foodfactor = 16
+
+  If booze > 0
+    boozedelta + 1
+    If boozedelta > 20 Then boozedelta = 20
+
+    booze = booze - 20 + foodfactor LSR 1
+    If booze < 0 Then booze = 0
+    ;If food > 0
+    ;Else
+    ;End If
+    ;= #boozedelta - food LSR 8
+    ;If boozedelta < 1 Then boozedelta = 1
+    ;booze - boozedelta
+    ;If booze < 0
+    ;  booze = 0
+    ;End If
+
+  Else ; Start sobering up
+    ;If zonelevel > 0
+      boozedelta - 1
+      If boozedelta < -10 Then boozedelta = -10
+    ;Else
+    ;  boozedelta = 0
+    ;End If
+    ;If foodfactor + boozedelta >= 0
+    ;  boozedelta = -1
+    ;Else
+    ;  boozedelta + foodfactor
+    ;End If
+    ;zonelevel - boozedelta
+  End If
+  ;booze + boozedelta
+
+  zonedelta = 0
+  If boozedelta > 0
+    zonedelta = boozedelta - foodfactor
+    If zonedelta < 1 Then zonedelta = 1
+  Else
+    If boozedelta < 0
+      zonedelta = boozedelta + foodfactor
+      If zonedelta > -1 Then zonedelta = -1
+    End If
+  End If
+
+  If booze > 0
+    ;booze - Abs(zonedelta)
+    ;If booze < 0 Then booze = 0
+  End If
+
+  zonelevel + zonedelta
+  If zonelevel < 0 Then zonelevel = 0
+  If zonelevel > 10000 Then zonelevel = 10000
+
+  zonelevelpointer = zonelevel LSR 5
+  If zonelevelpointer > 311
+    zonelevelpointer = 311
+  End If
+  DisplaySprite 1, 0, zonelevelpointer, 4, 0
+
+  drunkfactor = zonelevelpointer - 100
+  If drunkfactor < 0
+    drunkfactor = 0
+  Else
+    drunkfactor = drunkfactor LSR 7
+  End If
+
+  If drunkfactor > 0
+    \dx = 2 - drunkfactor
+    \dy = 1 - drunkfactor LSR 1
+
+  Else
+    \dx = \basedx
+    \dy = \basedy
+  End If
+
+  If zonelevelpointer > 150
+    ;If zonelevelpointer > 200
+    ;  \dx = 1
+    ;  \dy = 0.5
+    ;Else
+    ;  \dx = 1.5
+    ;  \dy = 0.75
+    ;End If
+
+    If heartbeatframes >= nextstaggerframe
+      nextstaggerframe = heartbeatframes + 5 + Rnd(25)
+
+      If zonelevelpointer > 250
+        ;\drunkdx = (Rnd LSL 1) - 1
+        \drunkdx = (Rnd) - 0.5
+        \drunkdy = (Rnd) - 0.5 ;LSR 1
+      Else
+        \drunkdx = (Rnd) - 0.5
+        \drunkdy = (Rnd LSR 1) - 0.25 ;LSR 1
+                                                                                                                                                                                                                                                  
+      End If
+      If \drunkdy > 0.4
+        \drunkdx = 0.4
+      Else
+        If \drunkdy < -0.4
+          \drunkdy = -0.4
+        End If
+      End If
+    End If
+  Else
+    ;\dx = \basedx
+    ;\dy = \basedy
+    \drunkdx = 0
+    \drunkdy = 0
+  End If
+
+  \dx + \drunkdx
+  \dy + \drunkdy
+
+
+  If zonelevelpointer = 0
+    If drunkarmedflag = 1
+      limittimer + 1
+
+      If limittimer > #maxlimittimer
+        ;Gosub endofgame
+        statuscounter = 0
+        status = #endgame
+        endgametype = #end_sober
+      End If
+      updatepointercol = 1
+      If zonepointerflash
+        zonepointercol + 2
+        If zonepointercol > 15
+          zonepointercol = 15
+          zonepointerflash = 0
+        End If
+
+      Else
+        zonepointercol - 2
+        If zonepointercol < 0
+          zonepointercol = 0
+          zonepointerflash = 1
+        End If
+      End If
+    End If
+    If prevzonelevelpointer > 0
+      Select Int(Rnd(3))
+        Case 0
+          msg$ = "Aw man, I need a drink"
+        Case 1
+          msg$ = "Mmmmm, pints..."
+        Default
+          msg$ = "Mebbe I should just head home..."
+      End Select
+      currentspeech = #sp_talk_to_myself
+      bubbletime = -1
+      openspeechbubble{\worldx, \worldy - 18, 0, msg$}
+    End If
+  Else
+    If prevzonelevelpointer = 0
+      drunkarmedflag = 1
+      zonepointercol = 15
+      zonepointerflash = 0
+      updatepointercol = 1
+      limittimer = 0
+    End If
+
+
+    If zonelevelpointer = 311
+      limittimer + 1
+      CNIF #debug
+        dbugprintstring{"DrunkLimitTimer: " + Str$(limittimer)}
+      CEND
+      If limittimer > #maxlimittimer
+        statuscounter = 0
+        status = #endgame
+        endgametype = #end_drunk
+        ;Gosub endofgame
+      End If
+      updatepointercol = 1
+      If zonepointerflash
+        zonepointercol + 2
+        If zonepointercol > 15
+          zonepointercol = 15
+          zonepointerflash = 0
+        End If
+
+      Else
+        zonepointercol - 2
+        If zonepointercol < 0
+          zonepointercol = 0
+          zonepointerflash = 1
+        End If
+      End If
+      If prevzonelevelpointer < 311
+        Select Int(Rnd(3))
+          Case 0
+            msg$ = "I sheem to *hic* ... Sorry, had too much " + Chr$(10) + "*hic* ... what wash I shayin'? I *hic* ..." + Chr$(10) + "yeah I sheem to be lost..."
+          Case 1
+            msg$ = "*hic* ..."
+          Default
+            msg$ = "... and I shaid to her 'ye cannae do that'" + Chr$(10) + "and *hic* ... and she shaid" + Chr$(10) + "'can I no? Jusht watch meh'"
+        End Select
+        currentspeech = #sp_talk_to_myself
+        bubbletime = -1
+        openspeechbubble{\worldx, \worldy - 18, 0, msg$}
+                                                                                                                                                                                                                                                        
+      End If
+    Else
+      If prevzonelevelpointer = 311
+        zonepointercol = 15
+        zonepointerflash = 0
+        updatepointercol = 1
+        limittimer = 0
+      End If
+    End If
+                                                                                                                                                                                                                                                        
+  End If
+
+                                                                                                                                                                                                                                                        
+
+
+  If updatepointercol
+    updatepointercol = 0
+    PalRGB #pal_statusbar, 17, zonepointercol, zonepointercol, zonepointercol
+    DisplayPalette 1, #pal_statusbar
+  End If
+
+  prevzonelevelpointer = zonelevelpointer
+
+  CNIF #debug
+    BitMapOutput #bmap_statusbar
+    Locate 0, 3
+
+    NPrint "dx\dy: ", \dx, ", ", \dy, "    "
+    NPrint "Food: ", food, ", F: ", foodfactor, "   "
+    NPrint "Booze: ", booze, ", D: ", zonedelta, "   "
+                                                                                                                                                                                                                                                      
+  CEND
+
+Return
+
+
+
+; Update the status bar time display
+.updatetime
+  BitMapOutput #bmap_statusbar
+  Colour 30, 0
+  Locate 30, 5.3
+  If timehrs < 10 Then Print "0"
+  Print timehrs, ":"
+  If timemins < 10 Then Print "0"
+  Print timemins
+
+Return
+
+
+; Update the status bar money display
+.updatemoney
+  BitMapOutput #bmap_statusbar
+  Locate 5, 5.3
+  Colour 30, 0
+
+  pounds = money
+  pence = Frac(money) * 100; - pounds
+
+  ;pence$ = Str$(pence)
+
+  If money < 10 Then Print " "
+  Print pounds, ".";, pence$
+  If pence < 10;Peek.w(&pence$ - 2) < 2
+    Print "0"
+  End If
+  Print pence;$
+  ;If timemins < 10 Then Print "0"
+  ;Print timemins
+  ;Format ""
+Return
+
+
+; We've started an action with something / someone
+.interact
+  Select interactflag
+    Case #i_shop
+      If map(interacttilex, interacttiley)\specialtype = #special_shop
+
+        specialid = map(interacttilex, interacttiley)\specialid
+
+        If interacttiley & %1 ; Odd columm
+          speechx.w = interacttilex LSL 6 + 64; - displayx
+          speechy.w = interacttiley LSL 4 + 16; - displayy
+        Else
+          speechx.w = interacttilex LSL 6 + 32; - displayx
+          speechy.w = interacttiley LSL 4 + 16; - displayy
+
+        End If
+
+
+
+        speechstep = 0
+        ; Do the selecting message bit here
+        bubbletime = -1
+
+        opening.w = shops(specialid)\opentime
+        closing.w = shops(specialid)\closetime
+
+        If shopopen{specialid}
+          currentspeech = #sp_shop_open
+          Select Int(Rnd(3))
+            Case 0
+              msg$ = "What can I get ye?"
+            Case 1
+              msg$ = "Alright pal?"
+            Default
+              msg$ = "What ye havin'?"
+          End Select
+          openspeechbubble{speechx, speechy, specialid, msg$}
+
+        Else
+          currentspeech = #sp_shop_closed
+          msg$ = "Sorry pal, we're closed. " + Chr$(10) + "We're open " + Str$(opening) + ":00 - " + Str$(closing) + ":00"
+          openspeechbubble{speechx, speechy, specialid, msg$}
+        End If
+        ;openmenu{currentmenu, specialid}
+      End If
+
+    Case #i_npc
+      Select npcs(specialid)\kind
+        Case #npc_police
+          If npcs(specialid)\hunting
+            currentspeech = #sp_npc_police
+            msg$ = "Gotcha ya wee bam, yer nicked!" + Chr$(10) + "Come wi' me..."
+            openspeechbubble{npcs(specialid)\worldx, npcs(specialid)\worldy - 16, specialid, msg$}
+
+            ;status = #endgame
+            ;endgametype = #end_arrested
+            ; Game over
+          Else
+            currentmenu = #menu_npc_police
+            openmenu{currentmenu, specialid, 1}
+          End If
+
+        Case #npc_dealer
+          ;currentspeech = #sp_npc_police
+          msg$ = "You eh... wantin' anythin'?"
+          openspeechbubble{npcs(specialid)\worldx, npcs(specialid)\worldy - 16, specialid, msg$}
+          currentspeech = #sp_npc_dealer
+          npcs(specialid)\engage = 0
+
+        Case #npc_mugger
+          msg$ = "Gies all yer cash!"
+          openspeechbubble{npcs(specialid)\worldx, npcs(specialid)\worldy - 16, specialid, msg$}
+          currentspeech = #sp_npc_mugger
+                                                                                                                                                                                                                                                  
+        Default
+          If npcs(specialid)\hunting
+            If npcs(specialid)\mood = #npc_fight
+              status = #endgame
+              endgametype = #end_dead
+            End If
+          Else
+            currentmenu = #menu_npc_randomer
+            openmenu{currentmenu, specialid, 1}
+          End If
+                                                                                                                                                                                                                                                  
+      End Select
+  End Select
+Return
+
+
+.repairdamage
+; Reraw the tiles that should be in front
+
+  checktilestartx.w = displaytilex - 2
+  ;checktilestartx.w = \mapx - 4
+  If checktilestartx < 0 Then checktilestartx = 0
+  checktilestarty.w = displaytiley - 2
+  If checktilestarty < 0 Then checktilestarty = 0
+
+  checktileendx.w = checktilestartx + 10
+  If checktileendx >= mapwidth Then checktileendx = mapwidth - 1
+  checktileendy.w = checktilestarty + 14
+  If checktileendy >= mapheight Then checktileendy = mapheight - 1
+
+  Use BitMap db
+
+  ;BlitMode SolidMode
+  For i = checktilestarty To checktileendy
+;  For i = 0 To mapheight - 1
+    For j = checktilestartx To checktileendx
+;    For j = 0 To mapwidth - 1
+      If map(j, i)\damage = frameid
+
+      ; Our own tile
+        drawshape = map(j, i)\building
+      ;If drawshape <> -1
+        ;BitMapOutput 0
+        ;Colour 30, 1
+        ;Locate (\mapx LSL 6 + 32 + 24) LSR 3, (\mapy LSL 4 + 12) LSR 3
+        ;Print map(\mapx, \mapy)\building
+
+        ;blockedflag = 1
+        oddcol = i & %1
+        If oddcol
+          If map(j, i)\tileside = 2
+            Blit drawshape, j LSL 6 + 64, i LSL 4
+          Else
+            Blit drawshape, j LSL 6 + 32, i LSL 4
+          End If
+
+          ;If i > 1
+          ;  drawshape = map(j, i - 2)\building
+          ;  If drawshape <> -1
+          ;    If map(j, i - 2)\tileside = 2
+          ;      Blit drawshape, j LSL 6 + 64, i LSL 4 - 32
+          ;    Else
+          ;      Blit drawshape, j LSL 6 + 32, i LSL 4 - 32
+          ;    End If
+          ;  End If
+          ;End If
+        Else
+          If map(j, i)\tileside = 2
+            Blit drawshape, j LSL 6 + 32, i LSL 4
+          Else
+            Blit drawshape, j LSL 6, i LSL 4
+          End If
+          ;If \mapy > 1
+          ;  drawshape = map(j, i - 2)\building
+          ;  If drawshape <> -1
+          ;    If map(j, i - 2)\tileside = 2
+          ;      Blit drawshape, j LSL 6 + 32, i LSL 4 - 32
+          ;    Else
+          ;      Blit drawshape, j LSL 6, i LSL 4 - 32
+          ;    End If
+          ;  End If
+          ;End If
+        End If
+      End If
+    Next j
+  Next i
+  ;BlitMode CookieMode
+Return
+
+
+.doplayermovement
+  moveflag.b = 0
+
+  ;checkx = \worldx
+  If jx = -1
+    checkx = \worldx - \dx - 4
+
+
+    CNIF #orthogonal = 0
+      checky = \worldy - \dy - 2
+    CELSE
+      checky = \worldy
+    CEND
+
+    Gosub calculatetilepos
+    If map(tilex, tiley)\walkable
+      If jy = 1
+        \worldx - \diagdx + \drunkdx
+      Else
+        \worldx - \dx + \drunkdx
+      End If
+      If \worldx < #worldxmin Then \worldx = #worldxmin
+      CNIF #orthogonal = 0
+        If jy = 1
+          \worldy - \diagdy + \drunkdy
+        Else
+          \worldy - \dy + \drunkdy
+        End If
+        If \worldy < #worldymin Then \worldy = #worldymin
+      CEND
+    Else ; Can't walk here, let's check if it's something important
+      If jclick ;jb = 1
+        ;If prevjb = 0 Then
+        interactflag = #i_shop
+      End If
+    End If
+    \dir = 12
+
+    moveflag = 1
+  End If
+
+  If jx = 1
+    checkx = \worldx + \dx + 4
+
+    CNIF #orthogonal = 0
+      checky = \worldy + \dy + 2
+    CELSE
+      checky = \worldy
+    CEND
+
+    Gosub calculatetilepos
+    If map(tilex, tiley)\walkable
+      If jy = -1
+        \worldx + \diagdx ;+ \drunkdx
+      Else
+        \worldx + \dx ;+ \drunkdx
+      End If
+      ;\worldx + \dx
+      If \worldx > worldwidth - 48 Then \worldx = worldwidth - 48
+      CNIF #orthogonal = 0
+        If jy = -1
+          \worldy + \diagdy ;+ \drunkdy
+        Else
+          \worldy + \dy ;+ \drunkdy
+        End If
+        ;\worldy + \dy
+        If \worldy > worldheight - 4 Then \worldy = worldheight - 4
+      CEND
+    End If
+    \dir = 0
+    moveflag = 1
+  End If
+
+
+  If jy = -1
+    CNIF #orthogonal = 0
+      checkx = \worldx
+    CELSE
+      checkx = \worldx - 4
+    CEND
+
+    checky = \worldy - \dy - 2
+    Gosub calculatetilepos
+    If map(tilex, tiley)\walkable
+
+      CNIF #orthogonal = 0
+        If jx = 1
+          \worldx + \diagdx ;+ \drunkdx
+        Else
+          \worldx + \dx ;+ \drunkdx
+        End If
+        ;\worldx + \dx
+        If \worldx > worldwidth - 48 Then \worldx = worldwidth - 48
+      CEND
+
+      If jx = 1
+        \worldy - \diagdy ;+ \drunkdy
+      Else
+        \worldy - \dy ;+ \drunkdy
+      End If
+      ;\worldy - \dy
+
+
+      If \worldy < #worldymin Then \worldy = #worldymin
+
+    Else ; Can't walk here, let's check if it's something important
+      If jclick ;jb = 1
+        ;If prevjb = 0 Then
+        interactflag = #i_shop
+      End If
+    End If
+    \dir = 8
+    moveflag = 1
+  End If
+
+  If jy = 1
+    CNIF #orthogonal = 0
+      checkx = \worldx
+    CELSE
+      checkx = \worldx + 4
+    CEND
+
+    checky = \worldy + \dy + 2
+    Gosub calculatetilepos
+    If map(tilex, tiley)\walkable
+
+      CNIF #orthogonal = 0
+        If jx = -1
+          \worldx - \diagdx ;+ \drunkdx
+        Else
+          \worldx - \dx ;+ \drunkdx
+        End If
+        ;\worldx - \dx
+        If \worldx < #worldxmin Then \worldx = #worldxmin
+      CEND
+
+      If jx = -1
+        \worldy + \diagdy ;+ \drunkdy
+      Else
+        \worldy + \dy ;+ \drunkdy
+      End If
+      ;\worldy + \dy
+      If \worldy > worldheight - 4 Then \worldy = worldheight - 4
+    End If
+    \dir = 4
+    moveflag = 1
+  End If
+
+  If moveflag
+    If \animframe = 0 ; We've just started moving
+      \animframe = 1
+    Else
+      \animframe + 0.15
+      If \animframe >= 3
+        \animframe = 1
+      End If
+      \animframeint = \animframe
+      If \animframeint <> \prevanimframeint
+
+        rsnd.w = Rnd(4)
+        MTSoundFX #snd_footstep1 + rsnd, 64
+      End If
+      \prevanimframeint = \animframeint
+    End If
+  Else
+    \animframe = 0
+  End If
+
+  If interactflag
+    interacttilex = tilex
+    interacttiley = tiley
+  End If
+
+  prevmoveflag = moveflag
+
+Return
+
+
+.donpcmovement
+  ; Move the NPCs
+
+  drawlist(0)\id = -1
+  drawlist(0)\y = \worldy
+  drawlistcount = 0
+
+  For i = 0 To npccount - 1
+    CNIF #debug
+      dbugprintstring{"NPC " + Str$(i) + " Worldx: " + Str$(npcs(i)\worldx)}
+      dbugprintstring{"NPC " + Str$(i) + " Worldy: " + Str$(npcs(i)\worldy)}
+    CEND
+                                                                                                                                                                                                                                                      
+    npcmoveflag.b = 0
+
+    If npcs(i)\dx < 0
+      checkx = npcs(i)\worldx + npcs(i)\dx - 4
+      npcmoveflag = 1
+    Else
+      If npcs(i)\dx > 0
+        checkx = npcs(i)\worldx + npcs(i)\dx + 4
+        npcmoveflag = 1
+      Else
+        checkx = npcs(i)\worldx
+      End If
+    End If
+
+    If npcs(i)\dy < 0
+      checky = npcs(i)\worldy + npcs(i)\dy - 2
+      npcmoveflag = 1
+    Else
+      If npcs(i)\dy > 0
+        checky = npcs(i)\worldy + npcs(i)\dy + 2
+        npcmoveflag = 1
+      Else
+        checky = npcs(i)\worldy
+      End If
+    End If
+
+    ;If checkx > 0
+    ;  If checky > 0
+        Gosub calculatetilepos
+
+        CNIF #debug
+          dbugprintstring{"NPC " + Str$(i) + " Tilex: " + Str$(tilex)}
+          dbugprintstring{"NPC " + Str$(i) + " Tiley: " + Str$(tiley)}
+        CEND
+        If tilex >= 0
+          If tiley >= 0
+            If map(tilex, tiley)\walkable
+              npcs(i)\worldx + npcs(i)\dx
+              npcs(i)\worldy + npcs(i)\dy
+              If npcs(i)\worldx < 32
+                npcs(i)\worldx = 32
+              Else
+                If npcs(i)\worldx > worldwidth - 48
+                  npcs(i)\worldx = worldwidth - 48
+                End If
+              End If
+
+              If npcs(i)\worldy < 32
+                npcs(i)\worldy = 32
+              Else
+                If npcs(i)\worldy > worldheight - 4
+                  npcs(i)\worldy = worldheight - 4
+                End If
+              End If
+
+            End If
+          End If
+        End If
+
+        If npcmoveflag
+          If npcs(i)\animframe = 0 ; We've just started moving
+            npcs(i)\animframe = 1
+          Else
+            npcs(i)\animframe + 0.15
+            If npcs(i)\animframe >= 3
+              npcs(i)\animframe = 1
+            End If
+
+          End If
+        Else
+          npcs(i)\animframe = 0
+        End If
+
+        checkx = npcs(i)\worldx
+        checky = npcs(i)\worldy
+        Gosub calculatetilepos
+        npcs(i)\mapx = tilex
+        npcs(i)\mapy = tiley
+
+        If npcs(i)\dx > 0
+          If npcs(i)\worldx >= npcs(i)\targetx
+            npcs(i)\worldx = npcs(i)\targetx
+            ;dbugprintstring{"NPC " + Str$(i) + " Worldx (upd): " + Str$(npcs(i)\worldx)}
+            npcs(i)\dx = 0
+          End If
+        Else
+          If npcs(i)\dx < 0
+            If npcs(i)\worldx <= npcs(i)\targetx
+              npcs(i)\worldx = npcs(i)\targetx
+              ;dbugprintstring{"NPC " + Str$(i) + " Worldx (upd): " + Str$(npcs(i)\worldx)}
+              npcs(i)\dx = 0
+            End If
+          End If
+        End If
+
+        If npcs(i)\dy > 0
+          If npcs(i)\worldy >= npcs(i)\targety
+            npcs(i)\worldy = npcs(i)\targety
+            npcs(i)\dy = 0
+          End If
+        Else
+          If npcs(i)\dy < 0
+            If npcs(i)\worldy <= npcs(i)\targety
+              npcs(i)\worldy = npcs(i)\targety
+              npcs(i)\dy = 0
+            End If
+          End If
+        End If
+    ;  End If
+    ;End If
+
+
+    If npcs(i)\worldx = npcs(i)\targetx
+      If npcs(i)\worldy = npcs(i)\targety
+        CNIF #debug
+          dbugprintstring{"X Target met for NPC " + Str$(i) + ": " + Str$(npcs(i)\worldx)}
+          dbugprintstring{"Y Target met for NPC " + Str$(i) + ": " + Str$(npcs(i)\worldy)}
+        CEND
+                                                                                                                                                                                                                                                  
+        Select npcs(i)\activity
+          Case #npc_path
+            If npcs(i)\steptimer = 0
+              npcs(i)\pathstep + 1
+              If npcs(i)\pathstep >= npcs(i)\pathpointcount
+                npcs(i)\pathstep = 0
+              End If
+              If npcs(i)\pathpointsx[npcs(i)\pathstep] ; This is a coordinate
+                npcs(i)\changedestflag = 1
+
+              Else ; X point is 0, this is a pause step
+                npcs(i)\steptimer = npcs(i)\pathpointsy[npcs(i)\pathstep]
+              End If
+            Else ; We're in a pause step
+              npcs(i)\steptimer - 1
+            End If
+          Case #npc_idle
+            If npcs(i)\steptimer = 0
+              npcs(i)\dir = 3 - npcs(i)\dir
+              npcs(i)\steptimer = 50
+            Else
+              npcs(i)\steptimer - 1
+            End If
+          Case #npc_chase
+            If npcs(i)\steptimer = 0
+              npcs(i)\hunting = 1
+              npcs(i)\engage = 1
+              npcs(i)\changedestflag = 1
+            Else
+              npcs(i)\steptimer - 1
+            End If
+        End Select
+
+      End If
+    End If
+
+    ; Check if the NPC needs a new destination
+    If npcs(i)\changedestflag
+      Select npcs(i)\activity
+        Case #npc_path
+          npcs(i)\targetx = npcs(i)\pathpointsx[npcs(i)\pathstep]
+          npcs(i)\targety = npcs(i)\pathpointsy[npcs(i)\pathstep]
+          npcs(i)\changedestflag = 0
+        Case #npc_chase
+          npcs(i)\targetx = \worldx
+          npcs(i)\targety = \worldy
+        Case #npc_idle
+          npcs(i)\targetx = npcs(i)\pathpointsx[0]
+          npcs(i)\targety = npcs(i)\pathpointsy[0]
+          npcs(i)\changedestflag = 0
+      End Select
+
+      If npcs(i)\worldx < npcs(i)\targetx
+        npcs(i)\dx = npcs(i)\basedx
+        If npcs(i)\worldy < npcs(i)\targety
+          npcs(i)\dy = npcs(i)\basedy
+          npcs(i)\dir = 0
+        Else
+          If npcs(i)\worldy > npcs(i)\targety
+            npcs(i)\dy = 0 - npcs(i)\basedy
+            npcs(i)\dir = 6
+          Else ; No y-movement
+
+          End If
+        End If
+      Else
+        If npcs(i)\worldx > npcs(i)\targetx
+          npcs(i)\dx = 0 - npcs(i)\basedx
+
+        Else ; No x-movement
+
+        End If
+
+        If npcs(i)\worldy < npcs(i)\targety
+          npcs(i)\dy = npcs(i)\basedy
+          npcs(i)\dir = 3
+        Else
+          If npcs(i)\worldy > npcs(i)\targety
+            npcs(i)\dy = 0 - npcs(i)\basedy
+            npcs(i)\dir = 9
+          Else ; No y-movement
+
+          End If
+        End If
+
+      End If
+      CNIF #debug
+        dbugprintstring{"dx: " + Str$(npcs(i)\dx)}
+        dbugprintstring{"dy: " + Str$(npcs(i)\dy)}
+      CEND
+    End If
+
+
+
+    ; Check if this NPC is in the visible area of the map
+    closeflag = 1
+    If npcs(i)\worldx > displayx - 20
+      If npcs(i)\worldx < displayx + 340
+        If npcs(i)\worldy > displayy - 20
+          If npcs(i)\worldy < displayy + 220
+            drawlistcount + 1
+            drawlist(drawlistcount)\id = i
+            drawlist(drawlistcount)\y = npcs(i)\worldy
+
+
+            ; Visible, now check if we've interacted with it
+            xdiff = npcs(i)\worldx - \worldx
+            If xdiff < 128 ; We're sort of close
+              If xdiff > -128
+                ydiff = npcs(i)\worldy - \worldy
+                If ydiff < 100
+                  If ydiff > -100
+                    If npcs(i)\hunting
+                      npcs(i)\activity = #npc_chase
+                      npcs(i)\changedestflag = 1
+                      npcs(i)\engage = 1
+                    End If
+
+                    If xdiff < 10 ; We're very close
+                      If xdiff > -10
+                        ;ydiff = npcs(i)\worldy - \worldy
+                        If ydiff < 10
+                          If ydiff > -10
+                            If jclick
+                              interactflag = #i_npc
+                              specialid = i
+                            Else
+                              If npcs(i)\engage;hunting
+                                interactflag = #i_npc
+                                specialid = i
+                              End If
+                            End If
+                          End If
+                        End If
+                      End If
+                    End If
+                  End If
+                End If
+              End If
+            End If
+
+
+            npcs(i)\animframeint = npcs(i)\animframe
+            If npcs(i)\animframeint <> npcs(i)\prevanimframeint
+              rsnd.w = Rnd(4)
+              MTSoundFX #snd_footstep1 + rsnd, 32
+            End If
+            npcs(i)\prevanimframeint = npcs(i)\animframeint
+
+          Else
+            closeflag = 0
+          End If
+        Else
+          closeflag = 0
+        End If
+      Else
+        closeflag = 0
+      End If
+    Else
+      closeflag = 0
+    End If
+    If closeflag = 0
+      If npcs(i)\activity = #npc_chase
+        If npcs(i)\pathpointcount > 0
+          npcs(i)\activity = #npc_path
+        Else
+          npcs(i)\activity = #npc_idle
+        End If
+        npcs(i)\changedestflag = 1
+
+      End If
+      npcs(i)\engage = 0
+    End If
+  Next i
+  ;End While
+
+Return
+
+
+.drawobjects
+
+; Now sort the list of visible items to be drawn in order of Y position
+;ResetList drawlist()
+If drawlistcount > 0
+  For i = 0 To drawlistcount
+    movedflag.b = 0
+    For j = 0 To drawlistcount - 1
+      If drawlist(j)\y > drawlist(j + 1)\y
+        CopyType drawlist(j + 1), tempdrawitem
+        CopyType drawlist(j), drawlist(j + 1)
+        CopyType tempdrawitem, drawlist(j)
+      End If
+    Next j
+  Next i
+End If
+
+
+
+; Draw the things
+For i = 0 To drawlistcount
+  If drawlist(i)\id = -1
+    BBlit db, #sh_nedstart + \dir + \animframe, \worldx, \worldy
+  Else
+    BBlit db, npcs(drawlist(i)\id)\shapeoffset + npcs(drawlist(i)\id)\dir + npcs(drawlist(i)\id)\animframe, npcs(drawlist(i)\id)\worldx, npcs(drawlist(i)\id)\worldy
+  End If
+Next i
+
+
+
+; Now redraw the building tiles that might be in front
+
+frameid + 1
+If frameid = 0 Then frameid = 1
+blockedflag = 0
+
+For i = 0 To drawlistcount
+  If drawlist(i)\id = -1
+    checkx = \worldx
+    checky = \worldy
+    ;mapx = \mapx
+    ;mapy = \mapy
+    Gosub calculatetilepos
+    \mapx = tilex
+    \mapy = tiley
+    mapx = \mapx
+    mapy = \mapy
+  Else
+
+    checkx = npcs(drawlist(i)\id)\worldx
+    checky = npcs(drawlist(i)\id)\worldy
+    ;mapx = npcs(drawlist(i)\id)\mapx
+    ;mapy = npcs(drawlist(i)\id)\mapy
+    Gosub calculatetilepos
+    npcs(drawlist(i)\id)\mapx = tilex
+    npcs(drawlist(i)\id)\mapy = tiley
+    mapx = npcs(drawlist(i)\id)\mapx
+    mapy = npcs(drawlist(i)\id)\mapy
+
+  End If
+
+
+  ; Calculate the position within the tile
+  oddcol = mapy & %1
+  If oddcol
+    intilex = (checkx - 32) & %111111
+    intiley = (checky - 16) & %11111
+  Else
+    intilex = checkx & %111111
+    intiley = checky & %11111
+  End If
+  intilex2 = intilex LSR 1 ; This gives us a tile with approximately the same width and height (32 px)
+
+  ; These factors give us approximately isometric coordinates, which tell us how close we are to the diagonal edges
+  edgefactorright = intilex2 + intiley ; Ranges from 0 (top left edge) to 48 (bottom right edge)
+  edgefactorleft = intiley - intilex2 ; Ranges from -15 (top right edge) to 15 (bottom left edge)
+
+
+
+  ;BlitMode SolidMode
+
+  ; Our own tile
+  drawshape = map(mapx, mapy)\building
+  If drawshape <> -1
+    Select map(mapx, mapy)\tileside
+      Case 0
+        If drawlist(i)\id = -1 Then blockedflag = 1
+        map(mapx, mapy)\damage = frameid
+      Case 1
+        If intilex < 39
+          If drawlist(i)\id = -1 Then blockedflag = 1
+          map(mapx, mapy)\damage = frameid
+        End If
+      Case 2
+        If intilex > 25
+          If drawlist(i)\id = -1 Then blockedflag = 1
+          map(mapx, mapy)\damage = frameid
+        End If
+
+    End Select
+
+    If mapy > 1
+      drawshape = map(mapx, mapy - 2)\building
+      If drawshape <> -1
+        map(mapx, mapy - 2)\damage = frameid
+      End If
+    End If
+  End If
+
+
+
+  ; Either side of our tile
+   ;BlitMode SolidMode
+  If oddcol
+    If intilex < 39
+      drawshape = map(mapx, mapy + 1)\building ; Down-left
+      If drawshape <> -1 ;map(\mapx, \mapy + 1)\building
+        ; Also check if this is a wall or a flat tile, i.e. does it extend above the tile?
+        If map(mapx, mapy + 1)\talltile
+          If drawlist(i)\id = -1 Then blockedflag = 1
+          map(mapx, mapy + 1)\damage = frameid
+        End If
+        If mapy > 0
+          drawshape = map(mapx, mapy - 1)\building ; Up-left
+          If drawshape <> -1
+            map(mapx, mapy - 1)\damage = frameid
+          End If
+        End If
+      End If
+    End If
+
+    If intilex > 25
+      drawshape = map(mapx + 1, mapy + 1)\building ; Down-right
+      If drawshape <> -1
+        ; Also check if this is a wall or a flat tile, i.e. does it extend above the tile?
+        If map(mapx + 1, mapy + 1)\talltile
+          If drawlist(i)\id = -1 Then blockedflag = 1
+          map(mapx + 1, mapy + 1)\damage = frameid
+        End If
+        If mapy > 0
+          drawshape = map(mapx + 1, mapy - 1)\building ; Up-right
+          If drawshape <> -1
+            map(mapx + 1, mapy - 1)\damage = frameid
+          End If
+        End If
+      End If
+    End If
+
+    Else
+      If intilex < 39
+        If mapx > 0
+          drawshape = map(mapx - 1, mapy + 1)\building
+          If drawshape <> -1
+            ; Also check if this is a wall or a flat tile, i.e. does it extend above the tile?
+            If map(mapx - 1, mapy + 1)\talltile
+              If drawlist(i)\id = -1 Then blockedflag = 1
+              map(mapx - 1, mapy + 1)\damage = frameid
+            End If
+            drawshape = map(mapx - 1, mapy - 1)\building
+            If drawshape <> -1
+              map(mapx - 1, mapy - 1)\damage = frameid
+            End If
+          End If
+        End If
+      End If
+
+      If intilex > 25
+        drawshape = map(mapx, mapy + 1)\building
+        If drawshape <> -1
+          ; Also check if this is a wall or a flat tile, i.e. does it extend above the tile?
+          If map(mapx, mapy + 1)\talltile
+            If drawlist(i)\id = -1 Then blockedflag = 1
+            map(mapx, mapy + 1)\damage = frameid
+          End If
+          If mapy > 0
+            drawshape = map(mapx, mapy - 1)\building
+            If drawshape <> -1
+              map(mapx, mapy - 1)\damage = frameid
+            End If
+          End If
+        End If
+      End If
+    End If
+
+
+
+    If intilex < 7
+      If mapx > 0
+        drawshape = map(mapx - 1, mapy)\building ; Directly left
+        If oddcol
+          If map(mapx, mapy + 1)\building = -1
+            drawshape = -1
+          End If
+        Else
+          If map(mapx - 1, mapy + 1)\building = -1
+            drawshape = -1
+          End If
+        End If
+
+
+        If drawshape <> -1 ;map(\mapx, \mapy + 1)\building
+          If map(mapx - 1, mapy)\tileside <> 1
+            map(mapx - 1, mapy)\damage = frameid
+          End If
+        End If
+      End If
+    Else
+      If intilex > 57
+        drawshape = map(mapx + 1, mapy)\building ; Directly right
+        If oddcol
+          If map(mapx + 1, mapy + 1)\building = -1
+            drawshape = -1
+          End If
+        Else
+          If map(mapx, mapy + 1)\building = -1
+            drawshape = -1
+          End If
+        End If
+        If drawshape <> -1 ;map(\mapx, \mapy + 1)\building
+          If map(mapx + 1, mapy)\tileside <> 2
+            map(mapx + 1, mapy)\damage = frameid
+          End If
+        End If
+      End If
+
+    End If
+
+    ;The tile directly down from ours
+    ;If intiley > 29 ; 16
+    If mapy < mapheight - 2
+      If edgefactorleft > 13 ;OR edgefactorright > 45
+        drawshape = map(mapx, mapy + 2)\building
+        If drawshape <> -1
+          If map(mapx, mapy + 2)\talltile
+            If map(mapx, mapy + 2)\tileside <> 2
+            ; Also check if this is a wall or a flat tile, i.e. does it extend above the tile?
+              If drawlist(i)\id = -1 Then blockedflag = 1
+              map(mapx, mapy + 2)\damage = frameid
+            End If
+          End If
+        End If
+      End If
+
+      If edgefactorright > 45
+        drawshape = map(mapx, mapy + 2)\building
+        If drawshape <> -1
+          If map(mapx, mapy + 2)\talltile
+            If map(mapx, mapy + 2)\tileside <> 1
+            ; Also check if this is a wall or a flat tile, i.e. does it extend above the tile?
+              If drawlist(i)\id = -1 Then blockedflag = 1
+              map(mapx, mapy + 2)\damage = frameid
+            End If
+          End If
+        End If
+      End If
+    End If
+
+    ;BlitMode CookieMode
+  Next i
+
+  Gosub repairdamage
+
+  If blockedflag
+    If \worldy > 15
+      BBlit db, #sh_nedpointer, \worldx, \worldy - 16
+    End If
+  End If
+
+Return
+
+
+.endofgame
+  status = #endgame
+  statuscounter = 0
+
+  ;\animframe = 3
+Return
+
+
+.domenus
+  Select currentmenu
+    Case #menu_shop
+      If menuselected = menuentries ; Cancel
+        closemenu{}
+      Else
+        If shops(specialid)\prices[menuselected] <= money
+          money - shops(specialid)\prices[menuselected]
+          Gosub updatemoney
+          itemid = shops(specialid)\items[menuselected]
+          food + itemdefs(itemid)\food
+          booze + itemdefs(itemid)\booze
+          closemenu{}
+          MTSoundFX #snd_cashregister, 64
+          bubbletime = -1
+          currentspeech = #sp_shop_thanks
+          msg$ = "Thanks!"
+          openspeechbubble{speechx, speechy, specialid, msg$}
+          MTSoundFX #snd_cashregister, 64
+          status = #speech
+        Else ; Can't afford it
+          closemenu{}
+          bubbletime = -1
+          currentspeech = #sp_shop_thanks
+          msg$ = "Sorry pal, ye cannae afford it"
+          openspeechbubble{speechx, speechy, specialid, msg$}
+          status = #speech
+        End If
+      End If
+    Case #menu_pause
+      closemenu{}
+      If menuselected = 1
+        fadedown{#pal_main, 20, 1}
+        MTEnd
+        status = #titlescreen
+        refresh = 0
+        titlescreen{}
+        fadeup{#pal_titlescreen, 20}
+        Gosub starttitlemusic
+      End If
+    Case #menu_title
+      closemenu{}
+      refresh = 0
+      Select menuselected
+        Case 0 ; Start game
+          fadedown{#pal_titlescreen, 20, 1}
+          MTEnd
+          initgame{}
+          initgamedisplay{}
+
+          Gosub startgamemusic
+          Gosub updatetime
+          Gosub updatemoney
+          status = #running
+          refresh = 1
+        Case 1 ; About
+          aboutpage = 0
+          showabout{aboutpage}
+        Case 2 ; High scores
+          fadedown{#pal_titlescreen, 20, 0}
+          showhighscores{0, 1}
+        Case 3 ; Credits
+          aboutpage = 0
+          showcredits{aboutpage}
+        Case 4 ; Quit
+          quit = True
+      End Select
+    Case #menu_npc_randomer
+      closemenu{}
+      Select menuselected
+        Case 0 ; Spare change
+          If Rnd(1) > 0.5
+            If npcs(specialid)\money > 0
+              change.q = Int(Rnd(40)); / 100; + 0.5
+              change / 10
+              If change > npcs(specialid)\money
+                change = npcs(specialid)\money
+              End If
+              npcs(specialid)\money - change
+              msg$ = "Aye pal, here, have " + currency{change}
+              ;openspeechbubble{npcs(specialid)\worldx, npcs(specialid)\worldy - 18, 0, msg$}
+              money + change
+              ;Gosub updatemoney
+            Else
+              If npcs(specialid)\mood = #npc_grumpy
+                msg$ = "Get tae fuck!"
+              Else
+                msg$ = "Sorry pal, I've nae cash"
+              End If
+              ;openspeechbubble{npcs(specialid)\worldx, npcs(specialid)\worldy - 18, 0, msg$}
+            End If
+          Else
+            Select npcs(specialid)\mood
+              Case #npc_grumpy
+                msg$ = "Get tae fuck!"
+              Case #npc_scared
+                msg$ = "Please just go away!"
+              Default
+                Select Int(Rnd(4))
+                  Case 1
+                    msg$ = "Sorry pal, scrounge someone else"
+                    npcs(specialid)\mood = #npc_grumpy
+                  Default
+                    msg$ = "Sorry, cannae help ye"
+                End Select
+            End Select
+          End If
+          ;currentspeech = #sp_talk_to_myself
+          bubbletime = -1
+          currentspeech = #sp_npc_randomer
+          openspeechbubble{npcs(specialid)\worldx, npcs(specialid)\worldy - 16, 0, msg$}
+          status = #speech
+        Case 1 ; Gimme your wallet
+          If npcs(specialid)\money = 0
+            Select npcs(specialid)\mood
+              Case #npc_scared
+                msg$ = "Please, just lae me alone!"
+              Default
+                msg$ = "I've nae money, ye rocket!"
+            End Select
+          Else
+            If Rnd(1) > 0.9
+              msg$ = "Oh yeah? C'mere an' I'll batter ye!"
+              ;npcs(specialid)\hunting = 1
+              npcs(specialid)\activity = #npc_chase
+              npcs(specialid)\steptimer = 25
+              npcs(specialid)\mood = #npc_fight
+              ;status = #endgame
+              ;endgametype = #end_dead
+            Else
+              Select Int(Rnd(3))
+                Case 1
+                  msg$ = "Aw man, really?!"
+                  npcs(specialid)\mood = #npc_grumpy
+                Case 2
+                  msg$ = "Take it, ye jakey!"
+                  npcs(specialid)\mood = #npc_grumpy
+                Default
+                  msg$ = "H-here, take it!"
+                  npcs(specialid)\mood = #npc_scared
+              End Select
+              money + npcs(specialid)\money
+              npcs(specialid)\money = 0
+              For i = 0 To npccount - 1
+                If npcs(i)\kind = #npc_police
+                  npcs(i)\hunting = 1
+                End If
+              Next i
+            End If
+          End If
+
+          bubbletime = -1
+          currentspeech = #sp_npc_randomer
+          openspeechbubble{npcs(specialid)\worldx, npcs(specialid)\worldy - 16, 0, msg$}
+          If status <> #endgame
+            status = #speech
+          End If
+
+
+      End Select
+
+    Case #menu_npc_police
+      closemenu{}
+      Select menuselected
+        Case 0 ; Ask the time
+          msg$ = "It's " + Str$(timehrs) + ":"
+          If timemins < 10 Then msg$ + "0"
+          msg$ + Str$(timemins)
+                                                                                                                                                                                                                                                
+          bubbletime = -1
+          currentspeech = #sp_npc_police
+          openspeechbubble{npcs(specialid)\worldx, npcs(specialid)\worldy - 16, 0, msg$}
+          status = #speech
+        Case 1 ; Insult
+          msg$ = "Ye wat?!? You're nicked pal!"
+          bubbletime = -1
+          currentspeech = #sp_npc_police
+          openspeechbubble{npcs(specialid)\worldx, npcs(specialid)\worldy - 16, 0, msg$}
+          status = #speech
+          ;npcs(specialid)\hunting = 1
+          npcs(specialid)\steptimer = 25
+          npcs(specialid)\activity = #npc_chase
+      End Select
+
+    Case #menu_npc_dealer
+      closemenu{}
+      npcs(specialid)\engage = 0
+      Select menuselected
+        Case 0 ; Moonshine
+          bubbletime = -1
+          currentspeech = #sp_shop_thanks
+          status = #speech
+          If money >= 4
+            money - 4
+            booze + 10000
+            msg$ = "Heh, enjoy pal"
+          Else
+            msg$ = "Come back when you have the cash"
+          End If
+          openspeechbubble{npcs(specialid)\worldx, npcs(specialid)\worldy - 16, specialid, msg$}
+        Case 1 ; Pill
+          bubbletime = -1
+          currentspeech = #sp_shop_thanks
+          status = #speech
+          If money >= 8
+            money - 8
+            booze + 500
+            zonelevel = 10000
+            msg$ = "Enjoy the goods pal"
+          Else
+            msg$ = "Come back when you have the cash"
+          End If
+          openspeechbubble{npcs(specialid)\worldx, npcs(specialid)\worldy - 16, specialid, msg$}
+      End Select
+
+    Case #menu_npc_mugger
+      closemenu{}
+      npcs(specialid)\engage = 0
+      Select menuselected
+        Case 0 ; Give him the money or say you don't have it
+          If money > 0
+            npcs(specialid)\money + money
+            money = 0
+            Gosub updatemoney
+            currentspeech = #sp_shop_thanks
+            msg$ = "Much obliged!"
+            bubbletime = -1
+            openspeechbubble{npcs(specialid)\worldx, npcs(specialid)\worldy - 16, specialid, msg$}
+            status = #speech
+            npcs(specialid)\engage = 0
+            npcs(specialid)\hunting = 0
+          End If
+        Case 1 ; Fight
+          ;msg$ = "Oh yer done pal!"
+          ;bubbletime = -1
+          ;openspeechbubble{npcs(specialid)\worldx, npcs(specialid)\worldy - 16, specialid, msg$}
+          ;status = #speech
+          If Rnd(1) > 0.5
+            msg$ = "I'm not finished wi' ye, pal!"
+            bubbletime = -1
+            currentspeech = #sp_shop_thanks
+            openspeechbubble{npcs(specialid)\worldx, npcs(specialid)\worldy - 16, 0, msg$}
+            status = #speech
+            ;npcs(specialid)\hunting = 1
+            npcs(specialid)\steptimer = 25
+            npcs(specialid)\activity = #npc_chase
+            npcs(specialid)\mood = #npc_fight
+                                                                                                                                                                                                                                                      
+          Else
+            status = #endgame
+            endgametype = #end_dead
+          End If
+        Case 2 ; Run away
+          msg$ = "Ey, git back here ye little prick!"
+          bubbletime = -1
+          currentspeech = #sp_shop_thanks
+          openspeechbubble{npcs(specialid)\worldx, npcs(specialid)\worldy - 16, 0, msg$}
+          status = #speech
+          ;npcs(specialid)\hunting = 1
+          npcs(specialid)\steptimer = 25
+          npcs(specialid)\activity = #npc_chase
+          npcs(specialid)\mood = #npc_fight
+      End Select
+  End Select
+
+Return
+
+
+.starttitlemusic
+  MTInit 0, 0
+  ;MTMusicMask %1111
+  ;MTMusicChannels 4
+  mfxvol = 64
+  MTMasterVolume mfxvol
+  MTPlay On
+Return
+
+
+.startgamemusic
+  MTInit 1, 0
+  MTMusicMask %0111
+  ;MTMusicChannels 3
+  mfxvol = 8
+  MTMasterVolume mfxvol
+  MTPlay On
+Return
+
+
+
+; Embed the font data at the end of the executable
+.font_dat:
+;IncBin "FNS/7_high.fns"
+IncBin "FNS/Univers-Mod.fns"
+
+

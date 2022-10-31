@@ -1,0 +1,434 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = "WeegieNights"
+; ExeFile         = "WeegieNights"
+; CreateIcon      = 1
+; Residents       = "all.res,bb2objtypes.res"
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 10240
+; MakeSmallest    = 0
+; FuncOptimize    = 1
+; Version         = 0.0.0
+; NumberOfBuilds  = 985
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 80000
+; RuntimeDebug    = 0
+; DebugInfo       = 0
+; CreateDbgFile   = 65535
+; OverflowCheck   = 0
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 300
+; CursorColumn    = 1
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 5
+; Max GadgetList  = 5
+; Max Shape       = 600
+; Max Bank        = 5
+; Max MenuList    = 5
+; Max BlitzFont   = 4
+; Max GTList      = 20
+; Max Palette     = 10
+; Max BitMap      = 10
+; Max Screen      = 5
+; Max IntuiFont   = 5
+; Max Window      = 20
+; Max IconInfo    = 1
+; Max MUIObject   = 50
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 5
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max Tape        = 5
+; Max Sound       = 20
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
+; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
+; /XTRA
+; *** WeegieAssets.ab3
+; Loading and setting up game assets
+
+
+; Disable CPU caches to prevent glitches on some CPU boards
+If ExecVersion >= 36 ; CacheControl() is KS 2.0+
+  cachebits.l = %00000000000000000000000000000000 ; Disable everything in the mask
+  cachemask.l = %00000000000000000001000100000000 ; Data cache and data burst
+  oldcache.l = CacheControl_(cachebits, cachemask)
+End If
+
+
+.groundtiles
+; *** Shapes 0 - 99: Ground
+
+BitMap 0, 640, 420, 5
+LoadBitMap 0, "gfx/tilesheet.iff"
+
+; Footpath tiles (0 - 9)
+For i = 0 To 9
+  GetaShape i, #sh_groundstart + i * 64, 0, 64, 32
+Next i
+
+; Road tiles (2 rows) (10 - 29)
+For i = 0 To 1
+  For j = 0 To 9
+    GetaShape #sh_groundstart + 10 + j + i * 10, j * 64, 32 + i * 32, 64, 32
+  Next j
+Next i
+
+
+
+;For i = 0 To 2
+;  GetaShape #sh_groundstart + i + 9, i * 64, 64, 64, 32
+;Next i
+
+
+;LoadShape 0, "gfx/path0.iff"
+;For i = 1 To 11
+;  LoadShape i, "gfx/road" + Str$(i - 1) + ".iff"
+;Next i
+
+
+
+.buildingtiles
+; *** Shapes 100 - 199: walls, buildings
+
+; Flat roof tiles (100 - 109)
+For i = 0 To 9
+  GetaShape #sh_buildingstart + i, i * 64, 96, 64, 32
+  ;Handle #sh_buildingstart + i, 0, 16
+Next i
+
+
+; Corner wall tiles (110 - 119)
+For i = 0 To 9
+  GetaShape #sh_buildingstart + 10 + i, i * 64, 128, 64, 48
+  Handle #sh_buildingstart + 10 + i, 0, 16
+Next i
+
+; Single wall tiles (2 rows) (120 - 159)
+For i = 0 To 1
+  For j = 0 To 19
+    GetaShape #sh_buildingstart + 20 + j + i * 20, j * 32, 176, 32, 48
+    Handle #sh_buildingstart + 20 + j + i * 20, 0, 16
+  Next j
+Next i
+
+
+;For i = 0 To 2
+;  ;VWait 5
+;  LoadShape 20 + i, "gfx/wall" + Str$(i) + ".iff"
+;  Handle 20 + i, 0, 16
+;Next i
+
+;LoadShape 23, "gfx/roof0.iff"
+;Handle 23, 0, 8
+
+
+;Free BitMap 0
+
+
+.people
+; *** Shapes 300 - 399: Player, NPCs
+
+;BitMap 0, 62, 200, 5
+
+LoadBitMap 0, "gfx/ned.iff"
+
+For i = 0 To 3
+  For j = 0 To 3
+    shapenum.w = #sh_nedstart + i * 4 + j
+    If j = 3 ; Faceplant shape is 1px wider
+      GetaShape shapenum, j * 15, i * 15, 16, 15
+    Else
+      GetaShape shapenum, j * 15, i * 15, 15, 15
+      Handle shapenum, 7, 14
+    End If
+  Next j
+  ;VWait 5
+  ;LoadShape 50 + i, "gfx/man" + Str$(i) + ".iff"
+  ;;MidHandle 30 + i
+  ;Handle 50 + i, 7, 15
+Next i
+
+Handle #sh_nedstart + 3, 2, 2
+Handle #sh_nedstart + 7, 13, 2
+Handle #sh_nedstart + 11, 2, 13
+Handle #sh_nedstart + 15, 13, 13
+
+LoadBitMap 0, "gfx/npcs.iff"
+
+For i = 0 To 27
+  For j = 0 To 2
+    shapenum.w = #sh_npcstart + i * 3 + j
+    GetaShape shapenum, j * 15, i * 15, 15, 15
+    Handle shapenum, 7, 14
+
+  Next j
+  ;VWait 5
+  ;LoadShape 50 + i, "gfx/man" + Str$(i) + ".iff"
+  ;;MidHandle 30 + i
+  ;Handle 50 + i, 7, 15
+Next i
+
+
+Free BitMap 0
+
+
+.objects
+; *** Shapes 420 - 499: Objects
+
+.UIStuff
+; *** Shapes 500 - 519: Pointers, UI Details
+
+;LoadShape #sh_menupointer, "gfx/menupointer.iff"
+
+LoadShape #sh_zonepointer, "gfx/zonepointer.iff"
+GetaSprite 0, #sh_zonepointer
+;Free Shape 48
+;LoadShape #sh_nedpointer, "gfx/nedpointer.iff"
+;MidHandle #sh_nedpointer
+
+BitMap 0, 48, 32, 5
+LoadBitMap 0, "gfx/uigfx.iff"
+GetaShape #sh_bubblecornertl, 0, 0, 16, 16
+GetaShape #sh_bubblecornertr, 16, 0, 16, 16
+GetaShape #sh_bubblecornerbl, 0, 16, 16, 16
+GetaShape #sh_bubblecornerbr, 16, 16, 16, 16
+GetaShape #sh_firebutton1, 32, 0, 16, 10
+GetaShape #sh_firebutton2, 32, 10, 16, 10
+
+GetaShape #sh_menupointer, 32, 20, 7, 7
+;MidHandle #sh_menupointer
+GetaShape #sh_nedpointer, 32, 27, 9, 5
+MidHandle #sh_nedpointer
+
+Free BitMap 0
+
+
+.Logos
+; *** Shapes 520 - : Logos, loading screens
+
+LoadShape #sh_sauglogo, "gfx/SAUGLogo.iff", #pal_sauglogo
+;LoadPalette 9, "gfx/SAUGLogo.iff"
+MidHandle #sh_sauglogo
+
+LoadShape #sh_jamlogo, "gfx/jamlogo.iff", #pal_jamlogo
+MidHandle #sh_jamlogo
+
+LoadShape #sh_scenemissing, "gfx/missing.iff", #pal_scenemissing
+MidHandle #sh_scenemissing
+
+LoadShape #sh_titlescreen, "gfx/titlescreen.iff", #pal_titlescreen
+MidHandle #sh_titlescreen
+
+;PalRGB #pal_titlescreen, 0, 5, 5, 5
+
+
+LoadPalette #pal_main, "gfx/palette.pal"
+LoadPalette #pal_bg, "gfx/background.pal"
+
+
+;BitMap 0, 512, 608, 5
+BitMap 0, 576, 608, 5
+;BitMap 1, 512, 608, 5
+BitMap 1, 576, 608, 5
+
+BitMap #bmap_menubuffer, 240, 160, 5
+BitMap #bmap_menuscratch, 240, 160, 5
+
+BitMap #bmap_speechbubblebuffer, 240, 48, 5
+BitMap #bmap_speechbubblescratch, 240, 48, 5
+
+BitMap #bmap_speechcalloutbuffer, 120, 150, 5
+BitMap #bmap_speechcalloutscratch, 120, 150, 5
+
+BitMap #bmap_statusbar, 320, 54, 5
+
+
+
+
+LoadBitMap #bmap_statusbar, "gfx/statusbar_back.iff", #pal_statusbar
+;Boxf 0, 0, 319, 53, 1
+
+
+.palettes
+; *** Palettes
+InitPalette #pal_black, 32
+InitPalette #pal_fade, 32
+
+
+
+PalRGB #pal_main, 0, 0, 0, 0
+
+;InitCopList 0, 102, 200, $15, 8, 32, 80 ; -2;-60
+
+;CNIF #splitscroll
+;  InitCopList 0, 44, 200, $15, 8, 32, 80 ; -2;-60 ; Working
+;CELSE
+;  InitCopList 0, 44, 200, $15, 8, 32, -2;-60 ; Working
+;CEND
+;;InitCopList 1, 44, 54, $5, 8, 32, 0
+;InitCopList 1, 246, 54, $5, 8, 32, 0 ; Working
+
+
+Buffer 0, 16384
+Buffer 1, 16384
+
+Buffer #bmap_menubuffer, 8192
+Buffer #bmap_speechbubblebuffer, 8192
+
+
+.fonts
+If InstallFNS(1, ?font_dat) <> 1
+ NPrint "Error: Can't open font data"
+  End
+End If
+
+
+
+
+.sound
+; *** Music
+LoadBank 0, "sfx/daddy_mulk.mod", 2
+menumod.l = Bank(0)
+
+LoadBank 1, "sfx/ingame.mod", 2
+gamemod.l = Bank(1)
+
+
+; *** Sound effects
+DEFTYPE .sfx menutick1, menutick2, cashregister, bubble, gulp, footstep1, footstep2, footstep3, footstep4, menuup, menudown
+LoadSound #snd_menutick, "sfx/blip1.8svx"
+SFXInit{&menutick1, #snd_menutick, 64, 3, 2}
+
+;DEFTYPE .sfx menutick2
+LoadSound #snd_menuselect, "sfx/blip2.8svx"
+SFXInit{&menutick2, #snd_menuselect, 64, 3, 2}
+
+;DEFTYPE .sfx cashregister
+LoadSound #snd_cashregister, "sfx/cashregister.8svx"
+SFXInit{&cashregister, #snd_cashregister, 64, 3, 3}
+
+;DEFTYPE .sfx bubble
+LoadSound #snd_bubble, "sfx/bubble.8svx"
+SFXInit{&bubble, #snd_bubble, 64, 3, 2}
+
+;DEFTYPE .sfx gulp
+LoadSound #snd_gulp, "sfx/gulp.8svx"
+SFXInit{&gulp, #snd_gulp, 64, 3, 5}
+
+;DEFTYPE .sfx footstep1
+LoadSound #snd_footstep1, "sfx/Footstep1.8svx"
+SFXInit{&footstep1, #snd_footstep1, 64, 3, 1}
+
+;DEFTYPE .sfx footstep2
+LoadSound #snd_footstep2, "sfx/Footstep2.8svx"
+SFXInit{&footstep2, #snd_footstep2, 64, 3, 1}
+
+;DEFTYPE .sfx footstep3
+LoadSound #snd_footstep3, "sfx/Footstep3.8svx"
+SFXInit{&footstep3, #snd_footstep3, 64, 3, 1}
+
+;DEFTYPE .sfx footstep4
+LoadSound #snd_footstep4, "sfx/Footstep4.8svx"
+SFXInit{&footstep4, #snd_footstep4, 64, 3, 1}
+
+LoadSound #snd_menuup, "sfx/menuup.8svx"
+SFXInit{&menuup, #snd_menuup, 64, 3, 1}
+
+LoadSound #snd_menudown, "sfx/menudown.8svx"
+SFXInit{&menudown, #snd_menudown, 64, 3, 1}
+
+
+
+If ExecVersion >= 36
+  dummy.l = CacheControl_(oldcache, cachemask) ; Restore CPU cache status
+End If
+
+
+CNIF #splitscroll
+diwstart.w = $2981
+bmapypos.w = 100
+bmapypos.w = 512 - bmapypos
+
+bmapypos + diwstart LSR 8
+
+
+*bmap0.bitmap = Addr BitMap(0)
+*bmap1.bitmap = Addr BitMap(1)
+
+DefaultOutput
+NPrint *bmap0\_data[0]
+NPrint *bmap0\_data[1]
+NPrint *bmap0\_data[2]
+NPrint *bmap0\_data[3]
+NPrint *bmap0\_data[4]
+NPrint *bmap0\_data[5]
+NPrint *bmap0\_data[6]
+
+
+
+
+
+;End
+
+
+cop$ = Mki$($00e0) + Mki$((*bmap0\_data[0] + 1) LSR 16)
+cop$ + Mki$($00e2) + Mki$((*bmap0\_data[0] + 1) & $FFFF)
+cop$ + Mki$($00e4) + Mki$((*bmap0\_data[1] + 1) LSR 16)
+cop$ + Mki$($00e6) + Mki$((*bmap0\_data[1] + 1) & $FFFF)
+cop$ + Mki$($00e8) + Mki$((*bmap0\_data[2] + 1) LSR 16)
+cop$ + Mki$($00ea) + Mki$((*bmap0\_data[2] + 1) & $FFFF)
+cop$ + Mki$($00ec) + Mki$((*bmap0\_data[3] + 1) LSR 16)
+cop$ + Mki$($00ee) + Mki$((*bmap0\_data[3] + 1) & $FFFF)
+cop$ + Mki$($00f0) + Mki$((*bmap0\_data[4] + 1) LSR 16)
+cop$ + Mki$($00f2) + Mki$((*bmap0\_data[4] + 1) & $FFFF)
+
+
+
+;cop2$ + Mki$($00f0) + Mki$((*bmap0\_data[5] + 1) LSR 16)
+;cop2$ + Mki$($00e2) + Mki$((*bmap0\_data[5] + 1) & $FFFF)
+
+cop2$ = Mki$($01fe) + Mki$($0000)
+
+;cop$ = Mki$($0182) + Mki$($0F0F) ; Make pink
+NPrint Len(cop$)
+;End
+;cop$ + cop2$
+;End
+
+CEND
+
+
+
+

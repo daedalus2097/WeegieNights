@@ -1,0 +1,540 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = "WeegieNights"
+; ExeFile         = "WeegieNights"
+; CreateIcon      = 1
+; Residents       = "all.res,bb2objtypes.res"
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 10240
+; MakeSmallest    = 0
+; FuncOptimize    = 1
+; Version         = 0.0.0
+; NumberOfBuilds  = 986
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 80000
+; RuntimeDebug    = 1
+; DebugInfo       = 0
+; CreateDbgFile   = 65535
+; OverflowCheck   = 0
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 76
+; CursorColumn    = 58
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 5
+; Max GadgetList  = 5
+; Max Shape       = 600
+; Max Bank        = 5
+; Max MenuList    = 5
+; Max BlitzFont   = 4
+; Max GTList      = 20
+; Max Palette     = 10
+; Max BitMap      = 10
+; Max Screen      = 5
+; Max IntuiFont   = 5
+; Max Window      = 20
+; Max IconInfo    = 1
+; Max MUIObject   = 50
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 5
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max Tape        = 5
+; Max Sound       = 20
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
+; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
+; /XTRA
+; *** WeegieInit.ab3
+; Declarations and setups
+
+
+Macro bgcol
+  CNIF #debug
+    MOVE.w #`1, $dff180
+  CEND
+End Macro
+
+
+NEWTYPE .player
+  mapx.w      ; Tile coordinates on the map grid
+  mapy.w
+  basedx.q    ; Our basic movement speed
+  basedy.q
+  dx.q        ; Our current movement speed
+  dy.q
+  worldx.q    ; Our pixel coordinates in the world
+  worldy.q
+  animframe.q ; Current animation frame
+  animframeint.b
+  prevanimframeint.b
+  dir.w       ; Current movement direction, used as an offset for different sets of shapes
+  drunkdx.q   ; The effect of drunkenness on our movement
+  drunkdy.q
+  diagdx.q    ; Basic movement speed when on the diagonal
+  diagdy.q
+End NEWTYPE
+
+
+NEWTYPE .tile
+  tile.w        ; Ground tile at this location
+  building.w    ; Building tile at this location
+  walkable.b    ; Shows if this tile can be walked on or not
+  item.w        ; Not used yet
+  talltile.b    ; Indicates this tile extends above the base diamond
+  tileside.b    ; Used to indicate how much of the tile is covered by this wall. 0 = both sides, 1 = left only, 2 = right only
+  specialtype.b ; Special tiles are tiles you can interact with, e.g. shops
+  specialid.w   ; The ID of the shop etc. at this tile
+  damage.w      ; Shows if this tile needs to be redrawn
+End NEWTYPE
+
+NEWTYPE .tiledef
+  shapeid.w     ; ID of the shape to be blitted
+  talltile.b    ; See above
+  tileside.b    ; See above
+End NEWTYPE
+
+NEWTYPE .item
+  name.s
+  food.w
+  booze.w
+  kind.b
+End NEWTYPE
+
+NEWTYPE .shop
+  name.s
+  description.s
+  opentime.w    ; Opening hour
+  closetime.w   ; Closing hour
+  itemcount.w
+  items.w[10]   ; IDs of items available for sale
+  prices.q[10]  ; Prices of items available for sale
+End NEWTYPE
+
+NEWTYPE .triangle ; Vertices of polygon used for speech bubble
+  x1.w
+  y1.w
+  x2.w
+  y2.w
+  x3.w
+  y3.w
+End NEWTYPE
+
+NEWTYPE .npc
+  name.s
+  description.s
+  kind.b            ; The type of NPC
+  mapx.w            ; Tile the NPC is currently in
+  mapy.w
+  dx.w              ; Current movement speed
+  dy.w
+  basedx.w          ; Basic movement speed
+  basedy.w
+  worldx.w          ; World pixel coordinates
+  worldy.w
+  targetx.w         ; Where we're headed
+  targety.w
+  animframe.q       ; Current animation frame
+  animframeint.b
+  prevanimframeint.b
+  shapeoffset.w     ; This NPC's shapes start at this offset from the start of the NPC shapes (12 shapes per NPC)
+  dir.w             ; Direction of movement
+  activity.b        ; Flag determines what the NPC is currently doing
+  pathstep.b        ; Current step in following path points
+  pathpointcount.b  ; Total path points
+  pathpointsx.w[10] ; Points to follow
+  pathpointsy.w[10]
+  steptimer.w       ; If it's a pause step, this is the timer for how long to pause
+  blockedflag.b     ; This NPC is behind a building etc.
+  engage.b          ; This NPC will start interactions if set
+  hunting.b         ; This NPC is looking for you...
+  money.q           ; Cash
+  mood.b            ; Flag determines how the NPC reacts
+  changedestflag.b  ; This NPC needs new targe and dx/dy calculations
+End NEWTYPE
+
+NEWTYPE .drawitem ; Shapes that need to be redrawn in Y-order
+  id.b
+  y.w
+End NEWTYPE
+
+NEWTYPE .score
+  name.s
+  totalmins.w ; High score in minutes (displayed in-game as hours & minutes)
+  hrs.w       ; Unused
+  mns.w       ; Unused
+End NEWTYPE
+
+
+Dim map.tile(99, 32)
+
+Dim tiletrans.tiledef(100)
+
+Dim lineoffsets0.q(220)
+Dim lineoffsets1.q(220)
+Dim lineoffsets2.q(220)
+
+Dim itemdefs.item(100)
+Dim shops.shop(100)
+Dim npcs.npc(50)
+Dim drawlist.drawitem(100)
+Dim highscores.score(10)
+
+;Dim List drawlist.drawitem(0)
+
+
+; Holy Global Variables, Batman
+
+DEFTYPE .player player
+DEFTYPE .triangle speechcalloutbg
+DEFTYPE .drawitem tempdrawitem
+
+DEFTYPE .b moveflag, prevmoveflag, iswalkable, blockedflag, npcblockedflag, pounds, pence, status, jx, jy, jb, prevjx, prevjy, prevjb, jclick, interactflag, closebubble, drunkarmedflag, zonepointercol
+DEFTYPE .b zonepointerflash, updatepointercol, refresh, aboutpage, endgametype, closeflag, esckey
+
+DEFTYPE .w i, j, mapwidth, mapheight, worldwidth, worldheight, tilex, tiley, timedays, timehrs, timemins, zonelevel, checkx, checky, prevdisplayx, prevdisplayy, drawtilexx, drawtilexy, drawtileyx, drawtileyy
+DEFTYPE .w drawphasex, drawphasey, drawshape, starttilex, starttiley, inregionx, inregiony, bmapdrawtiley, bmapdisplayy, framecount, prevframecount, displaytilex2, splitpos, bmapypos, xblit, yblit
+DEFTYPE .w oddcol, intilex, intiley, heartbeats, minutecounter, booze, food, boozedelta, fooddelta, foodfactor, zonedelta, zonelevelpointer, currentmenu, menuselected, menuentries, prevmenuselected
+DEFTYPE .w menux, menuy, menu2x, menu2y, specialid, itemid, xoffset, bubblex, bubbley, bubblewidth, bubbleheight, bubbletime, bubbleicontime, bubbleiconframe, speechcalloutx, speechcallouty
+DEFTYPE .w speechcalloutwidth, speechcalloutheight, speechstep, frameid, intilex2, edgefactorright, edgefactorleft, interacttilex, interacttiley, npccount, drawlistcount, mapx, mapy, limittimer
+DEFTYPE .w prevzonelevelpointer, statuscounter, displayx, displayy, score, scorepos, xdiff, ydiff, speechx, speechy, mapwidth2, drawtilexxworld, drawtilexyworld
+
+DEFTYPE .l heartbeatframes, nextzoneframe, nextminuteframe, nextstaggerframe
+
+DEFTYPE .q money, lineoffsetcounter, drunkfactor
+
+
+
+;For i = 0 To 19
+;  Read tiletrans(i)
+;Next i
+
+;Data.w -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 20, 21, 22, 23, 0, 0, 0
+
+
+; *** Constant Definitions
+
+
+; Game Status
+#running = 1
+#paused = 2
+#menu = 3
+#titlescreen = 4
+#endgame = 5
+#gameover = 6
+#speech = 7
+#highscores = 8
+#credits = 9
+#about = 10
+#newhighscore
+
+
+; Menus
+#menu_title = 1
+#menu_pause = 2
+#menu_gameover = 3
+#menu_highscores = 4
+#menu_shop = 5
+#menu_speak = 6
+
+#menu_npc_police = 10
+#menu_npc_randomer = 11
+#menu_npc_mugger = 12
+#menu_npc_dealer = 13
+
+; Speech
+#sp_menu = 1
+
+
+; Special tiles
+#special_shop = 1
+#special_bin = 2
+
+
+; Colour pens
+#c_menubg = 1
+#c_white = 2
+#c_black = 3
+#c_red = 4
+#c_blue = 9
+#c_yellow = 11
+
+
+; Bitmaps
+#bmap_menubuffer = 3
+#bmap_menuscratch = 4
+#bmap_speechbubblebuffer = 5
+#bmap_speechbubblescratch = 6
+#bmap_speechcalloutbuffer = 7
+#bmap_speechcalloutscratch = 8
+#bmap_statusbar = 9
+
+
+; Palettes
+#pal_main = 0
+#pal_bg = 1
+#pal_black = 2
+#pal_fade = 4
+#pal_sauglogo = 5
+#pal_jamlogo = 6
+#pal_scenemissing = 7
+#pal_titlescreen = 8
+#pal_statusbar = 9
+
+
+; Shapes
+#sh_groundstart = 0
+#sh_buildingstart = 100
+#sh_nedstart = 300
+#sh_npcstart = 320
+#sh_objectstart = 400
+
+#sh_menupointer = 500
+#sh_zonepointer = 501
+#sh_nedpointer = 502
+
+#sh_bubblecornertl = 510
+#sh_bubblecornertr = 511
+#sh_bubblecornerbl = 512
+#sh_bubblecornerbr = 513
+#sh_firebutton1 = 514
+#sh_firebutton2 = 515
+
+
+#sh_sauglogo = 520
+#sh_jamlogo = 521
+#sh_scenemissing = 522
+#sh_titlescreen = 523
+
+
+; Speeches
+#sp_none = 0
+#sp_shop_open = 1
+#sp_shop_closed = 2
+#sp_shop_thanks = 3
+#sp_talk_to_myself = 4
+#sp_npc_randomer = 5
+#sp_npc_police = 6
+#sp_npc_dealer = 7
+#sp_npc_mugger = 8
+
+
+; NPC Activities
+#npc_idle = 0
+#npc_path = 1
+#npc_chase = 2
+#npc_wander = 3
+#npc_hunt = 4
+
+
+; NPC Types
+#npc_randomer = 0
+#npc_mugger = 1
+#npc_police = 2
+#npc_dealer = 3
+#npc_johnny = 4
+
+
+; NPC Moods
+#npc_neutral = 0
+#npc_grumpy = 1
+#npc_fight = 2
+#npc_scared = 3
+
+
+; Interaction Flags
+#i_shop = 1
+#i_npc = 2
+#i_object = 3
+
+
+; End game types
+#end_sober = 1
+#end_drunk = 2
+#end_arrested = 3
+#end_dead = 4
+#end_bin = 5
+
+
+; Sound effects
+#snd_menutick = 0
+#snd_menuselect = 1
+#snd_cashregister = 2
+#snd_gulp = 3
+#snd_footstep1 = 4
+#snd_footstep2 = 5
+#snd_footstep3 = 6
+#snd_footstep4 = 7
+#snd_bubble = 10
+#snd_menuup = 11
+#snd_menudown = 12
+
+
+; Item types
+#item_drink = 1
+#item_food = 2
+
+
+quit.b = 0
+
+db.b = 0
+
+displaytilex.w = 0
+displaytiley.w = 0
+
+displayintilex.w = 0
+displayintiley.w = 0
+
+q$ = Chr$($22)
+
+#tilewidth = 64
+#tileheight = 32
+
+#bitmapwidth = 512
+#wrapysize = 192
+
+#bmapyoffset = 64
+
+#worldxmin = 48
+#displayxmin = 32
+
+#maxlimittimer = 250 ; How long the zone pointer can stay at a limit before game over
+
+
+
+CNIF #splitscroll
+  #worldymin = 96
+  #displayymin = 80
+CELSE
+  #worldymin = 32
+  #displayymin = 16
+CEND
+
+
+
+
+
+
+CNIF #splitscroll
+splitoffset.w = 192
+CEND
+
+yoffset.w = 0
+;bmapx.w = displayx
+xscrollflag.b = 0
+yscrollflag.b = 0
+
+mfxvol.w = 64
+
+;status = #running
+
+
+For i = 1 To 18
+  Read lineoffsets1(i)
+Next i
+For i = 1 To 18
+  Read lineoffsets2(i)
+Next i
+
+For i = 20 To 200 Step 20
+  For j = 0 To 19
+    lineoffsets1(i + j) = lineoffsets1(j)
+    lineoffsets2(i + j) = lineoffsets2(j)
+  Next j
+Next i
+
+
+; Pretty drunk
+Data.q 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0
+;Data.q 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+
+; Very drunk
+;Data.q 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, -1, 0, -1, 0, -1, 0, -1, 0
+Data.q 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0
+
+
+
+
+; Item definitions
+;Restore items
+;For i = 0 To 4
+;  Read itemdefs(i)\name, itemdefs(i)\food, itemdefs(i)\booze
+;Next i
+
+.items
+Data.s "Pint of Tennent's"
+Data.w 200, 2000
+Data.s "Bottle of Buckfast"
+Data.w 200, 3000
+Data.s "Double vodka"
+Data.w 50, 2500
+Data.s "Pint of Craft IPA"
+Data.w 200, 2500
+Data.s "Bag of crisps"
+Data.w 200, 0
+
+
+
+; Shop definitions
+Restore shops
+For i = 100 To 100
+  Read shops(i)\name, shops(i)\description
+  Read x.w, y.w, shops(i)\opentime, shops(i)\closetime, shops(i)\itemcount
+  map(x, y)\specialtype = #special_shop
+  map(x, y)\specialid = i
+  For j = 0 To shops(i)\itemcount - 1
+    Read shops(i)\items[j]
+  Next j
+  For j = 0 To shops(i)\itemcount - 1
+    Read shops(i)\prices[j]
+  Next j
+Next i
+
+
+.shops
+Data.s "Dealer", "Dealer"
+Data.w 0, 0, 0, 0, 2, 31, 32
+Data.q 5, 8
+
+
+; Default scores
+
+For i = 1 To 10
+  highscores(i)\name = String$(Chr$(i + 64), 3)
+  highscores(i)\totalmins = 195 - i * 15
+Next i
+
+
+MaxLen keymap$ = 96
+keymap$ = "`1234567890-=\?0QWERTYUIOP[]?123ASDFGHJKL;#??456?ZXCVBNM,./??789 "
+
