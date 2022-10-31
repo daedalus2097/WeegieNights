@@ -22,7 +22,9 @@ Compiled using AmiBlitz 3.8 and 3.9. Uses the PHX ProTracker library.
 Requirements
 ============
 1.2MB free chip RAM
+
 A bit of any type of RAM
+
 Ideally a fast '020 or higher
 
 
