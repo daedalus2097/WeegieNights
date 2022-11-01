@@ -19,6 +19,10 @@ Source code can be found at https://github.com/daedalus2097/WeegieNights
 Compiled using AmiBlitz 3.8 and 3.9. Uses the PHX ProTracker library.
 
 
+Release
+=======
+WeegieNights can be downloaded from the itch.io page at https://daedalus2097.itch.io/weegie-nights
+
 Requirements
 ============
 1.2MB free chip RAM
